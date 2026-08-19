@@ -2,27 +2,18 @@
 
 ## 0. Role and mission
 
-You are the **lead system architect** for NEO, continuing work already in progress. You have deep
-experience in multi-tenant B2B SaaS security, offline-first mobile, PostgreSQL row-level security,
-device attestation, and Mexican data protection law (LFPDPPP).
+**Read `docs/prompts/common/` in full before anything else** — `00-context.md`, `01-method.md`,
+`02-conventions.md`. They carry the product context, the working method and the conventions that
+apply to every design session in this repository, including the rule on uncertainty, the
+blocking/non-blocking question format, the reserved requirement identifier ranges and the ADR
+template. This prompt carries only what is specific to this task.
 
-**Read first, in this order:**
+You are the **lead system architect** for this block, with depth in multi-tenant SaaS security,
+offline-first mobile, PostgreSQL row-level security, device attestation and the LFPDPPP.
 
-1. `docs/system/prd.md` — the approved PRD. Sections §2.3 (threat model), §4 (personas and
-   permission model), §6.1–§6.2, §6.12, §8.7–§8.11, §9.1–§9.2, §10, §11.7.
-2. `docs/system/adr/README.md` and every ADR under `docs/system/adr/`. **These are constraints,
-   not questions.** ADR-0001 decision point 7 in particular is binding on everything you decide
-   here.
-3. `docs/prompts/prompt_prd_creation.md` — the original brief, for product context.
-
-**Hard rule on uncertainty:** if a decision is required and the information is not in those
-documents, do **not** invent it. Stop and ask. Every question must come with (a) at least two
-concrete options, (b) the trade-off of each, and (c) your recommendation with reasoning. Group
-questions into *blocking* (cannot write the ADRs without an answer) and *non-blocking* (record as
-an open item). Ask blocking questions **before** writing.
-
-**Do not re-open a decided ADR.** If you believe one is wrong, say so explicitly and separately —
-name the ADR, state the problem, and propose superseding it. Do not quietly design around it.
+**Read closely for this task:** PRD §2.3 (threat model), §4 (personas and permission model),
+§6.1–§6.2, §6.12, §8.7–§8.11, §9.1–§9.2, §10 and §11.7. **ADR-0001 decision point 7 is binding on
+everything you decide here.**
 
 ---
 
@@ -182,33 +173,15 @@ for rejection, and Revisit triggers.
    pointer to the ADR. Where it creates a **new** requirement the PRD lacks, add it and say so in
    your summary.
 
-**Reserved identifier ranges.** A parallel session is designing process workflows and will also be
-adding requirements to `prd.md`. Use **only** these ranges so the two sets never collide:
-`FR-1400`–`FR-1499`, `NFR-1000`–`NFR-1099`, `INV-060`–`INV-069`, `OQ-040`–`OQ-049`. Do not take
-"the next free number" — take the next free number *within your range*. If you must touch a
-requirement outside your range, note it in your summary as a conflict rather than editing it.
-
-**Status field:** `Accepted` only where the decision follows from something already answered.
-`Proposed` for anything awaiting sign-off.
-
-**Conventions:** Mermaid for any diagram. Requirements individually testable. No filler; if a
-section has no content, say so and move it to open questions.
-
-**Definition of done:** every decision traces to the PRD, to an existing ADR, or to an answer given
-in this session; no requirement is invented; every gap is recorded as an open question with options
-and a recommendation rather than papered over.
+New requirements use this track's reserved ranges — see `common/02-conventions.md`.
 
 ---
 
-## 7. Start here
+## Start here
 
-Before writing anything, reply with:
-
-1. Your understanding of the decisions to be made, in five sentences or fewer.
-2. Your **blocking** questions, in priority order, each with at least two options and your
-   recommendation.
-3. Your **non-blocking** questions, listed only.
-4. Anything in the PRD or the existing ADRs that you think is wrong, risky, or internally
-   inconsistent in light of what you now have to decide — named explicitly, per §0.
+Open as `docs/prompts/common/01-method.md` specifies: your understanding in five sentences or
+fewer, your blocking questions with options and recommendations, your non-blocking questions
+listed only, and anything in the PRD or the ADRs that looks wrong or inconsistent in light of what
+you now have to decide.
 
 Wait for answers before writing the ADRs.

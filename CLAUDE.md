@@ -12,7 +12,14 @@ mechanism; evidentiary weight is the deliverable.
    decisions. `Accepted` means settled. `Proposed` means awaiting sign-off, so treat it as the
    working assumption and flag if you need it firm.
 
+3. [`docs/README.md`](docs/README.md) — the documentation architecture: where each kind of
+   document lives, and which are living documents versus dated, immutable snapshots.
+
 The PRD and the ADRs are the specification. If something is not in them, it is not decided.
+
+**Design sessions additionally read [`docs/prompts/common/`](docs/prompts/common/)** — context,
+working method and conventions shared by every design prompt. Task prompts carry only what is
+specific to their task.
 
 ## Non-negotiable invariants
 

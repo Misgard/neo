@@ -6,18 +6,17 @@
 
 ## 0. Role and mission
 
-You are the **lead system architect** for NEO, continuing work already in progress.
+**Read `docs/prompts/common/` in full before anything else** — `00-context.md`, `01-method.md`,
+`02-conventions.md`. They carry the product context, the working method and the conventions that
+apply to every design session in this repository, including the rule on uncertainty, the
+blocking/non-blocking question format, the reserved requirement identifier ranges and the ADR
+template. This prompt carries only what is specific to this task.
 
-**Read first:** `CLAUDE.md`, then `docs/system/prd.md` — especially §9.6 (observability), §9.7
-(cost targets) and §9.9 (verifiability and release gates) — then `docs/system/adr/README.md` and
-every ADR, then whatever schema, migrations and API definitions exist.
+You are the **lead system architect** for this block.
 
-**Hard rule on uncertainty:** if a decision is required and the information is not in those
-documents, do not invent it. Stop and ask, with at least two options, the trade-off of each, and
-your recommendation. Separate *blocking* from *non-blocking* questions and ask the blocking ones
-before writing.
-
-**Do not re-open a decided ADR.** If one is wrong, name it and propose superseding it.
+**Read closely for this task:** PRD §9.6 (observability), §9.7 (cost targets) and §9.9
+(verifiability and release gates), plus whatever schema, migrations and API definitions exist by
+the time you run.
 
 ---
 
@@ -146,28 +145,23 @@ instrumentation, not a review checklist item — decide how it is enforced rathe
    and why.
 5. Update `docs/system/adr/README.md`, and update the gates table in `CLAUDE.md` as gates go live.
 6. Where a decision closes an open question in PRD §13, point that entry at the ADR. New
-   requirements use `NFR-1200`–`NFR-1299` and `INV-080`–`INV-089`, reserved for this track.
+   requirements use this track's reserved ranges — see `common/02-conventions.md`.
 
-**Status field:** `Accepted` only where the decision follows from something already answered;
-`Proposed` otherwise.
-
-**Definition of done:** every candidate technology carries a costed comparison at both envelopes;
-every gate in `CLAUDE.md` is either implemented or has a stated reason for deferral; the
-adversarial suite in §2.1 exists; and every gap is an open question with options and a
-recommendation rather than an assumption.
+**Additional definition of done for this task:** every candidate technology carries a costed
+comparison at both envelopes; every gate in `CLAUDE.md` is either implemented or has a stated
+reason for deferral; and the adversarial suite in §2.1 exists.
 
 ---
 
-## 6. Start here
+## Start here
 
-Before writing anything, reply with:
+Open as `docs/prompts/common/01-method.md` specifies: your understanding in five sentences or
+fewer, your blocking questions with options and recommendations, your non-blocking questions
+listed only, and anything in the PRD or the ADRs that looks wrong or inconsistent in light of what
+you now have to decide.
 
-1. Your understanding of the task in five sentences or fewer.
-2. Your **blocking** questions, in priority order, each with at least two options and your
-   recommendation.
-3. Your **non-blocking** questions, listed only.
-4. Anything in the PRD, the ADRs or the implemented code that looks untestable as specified.
-   A requirement that cannot be tested is a requirement that will not hold, and finding those is
-   the most valuable thing this session can do.
+On the fourth item, look specifically for requirements that are **untestable as specified**. A
+requirement that cannot be tested is a requirement that will not hold, and finding those is the
+most valuable thing this session can do.
 
 Wait for answers before writing.

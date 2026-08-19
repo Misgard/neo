@@ -2,17 +2,17 @@
 
 ## 0. Role and mission
 
-You are the **lead product architect** for NEO, continuing work already in progress. You are
-designing the processes and user workflows that the PRD describes only in prose.
+**Read `docs/prompts/common/` in full before anything else** — `00-context.md`, `01-method.md`,
+`02-conventions.md`. They carry the product context, the working method and the conventions that
+apply to every design session in this repository, including the rule on uncertainty, the
+blocking/non-blocking question format, the reserved requirement identifier ranges and the ADR
+template. This prompt carries only what is specific to this task.
 
-**Read first:** `docs/system/prd.md` in full, then `docs/system/adr/README.md` and every ADR under
-`docs/system/adr/`. **The PRD and the ADRs are constraints, not questions.** Where you believe one
-is wrong, say so explicitly and separately; do not quietly design around it.
+You are the **lead product architect** for this block. You are designing the processes and user
+workflows that the PRD describes only in prose.
 
-**Hard rule on uncertainty:** if a decision is required and the information is not in those
-documents, do **not** invent it. Stop and ask, with at least two options, the trade-off of each,
-and your recommendation. Separate *blocking* from *non-blocking* questions and ask the blocking
-ones before writing.
+**Read closely for this task:** PRD §5 (the sixteen user journeys), §4 (permission model), §6 in
+full, §8 (capture), and ADR-0004, ADR-0005 and ADR-0006.
 
 ---
 
@@ -155,22 +155,12 @@ is logged, and what the user sees when it goes wrong.
    `support-and-access.md`.
 3. `docs/system/screens.md` — the screen inventory per persona and per form factor, in prose, with
    the purpose and the primary action of each screen. No mockups.
-4. Where a workflow surfaces a requirement the PRD lacks — and it will — **add it to the PRD** and
-   list every addition in your summary. Where it contradicts an existing requirement, raise it
-   rather than resolving it silently.
+4. Where a workflow surfaces a requirement the PRD lacks — and it will — **add it to the PRD** in
+   this track's reserved ranges and list every addition in your summary. Where it contradicts an
+   existing requirement, raise it rather than resolving it silently.
 
-**Reserved identifier ranges.** A parallel session is designing identity and security and will also
-be adding requirements to `prd.md`. Use **only** these ranges so the two sets never collide:
-`FR-1500`–`FR-1599`, `NFR-1100`–`NFR-1199`, `INV-070`–`INV-079`, `OQ-050`–`OQ-059`. Do not take
-"the next free number" — take the next free number *within your range*. If you must touch a
-requirement outside your range, note it in your summary as a conflict rather than editing it.
-
-**Conventions:** Mermaid `stateDiagram-v2` for lifecycles, `sequenceDiagram` for multi-actor flows,
-`flowchart` for decision trees. Every state machine must show its failure states.
-
-**Definition of done:** every object in §2 has a state machine; every flow in §5 has its exception
-paths designed, not just its happy path; every gap is an open question with options and a
-recommendation rather than an assumption.
+**Additional definition of done for this task:** every object in §2 has a state machine showing its
+failure states; every flow in §5 has its exception paths designed, not only its happy path.
 
 ---
 
@@ -184,16 +174,15 @@ capture loop.
 
 ---
 
-## 11. Start here
+## Start here
 
-Before writing anything, reply with:
+Open as `docs/prompts/common/01-method.md` specifies: your understanding in five sentences or
+fewer, your blocking questions with options and recommendations, your non-blocking questions
+listed only, and anything in the PRD or the ADRs that looks wrong or inconsistent in light of what
+you now have to decide.
 
-1. Your understanding of the task in five sentences or fewer.
-2. Your **blocking** questions, in priority order, each with at least two options and your
-   recommendation.
-3. Your **non-blocking** questions, listed only.
-4. Anything in the PRD or the ADRs that looks wrong, risky, or internally inconsistent once you
-   trace it through an actual flow — this is what detailed workflow design is best at finding, so
-   look hard.
+On the fourth item: tracing a prose journey through its actual states and failure paths is what
+finds contradictions in a specification. Look hard — it is the most valuable thing this session
+produces.
 
 Wait for answers before writing.
