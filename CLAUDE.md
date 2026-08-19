@@ -80,15 +80,25 @@ As of this file's last update, these have no ADR and no requirements beyond what
 
 ## Gates
 
-These run in CI and are release gates. A change that breaks one is not ready.
+| Gate | Status |
+|---|---|
+| Documentation integrity — no dangling or duplicate requirement identifiers, no ADR index drift (`scripts/check_docs.py`) | **live** |
+| Traceability — every non-documentation commit cites a requirement that exists in `prd.md` | specified, not built |
+| Database invariants — no `UPDATE`/`DELETE` grants on evidentiary tables (`NFR-944`); every tenant table has RLS enabled *and* policied (`NFR-945`) | specified, blocked on schema |
+| Tenant isolation suite, including the delegated cross-tenant path (`NFR-202`, `NFR-206`) | specified, blocked on schema |
+| Tamper detection — mutate a *jornada* row directly in the database, assert chain verification catches it (`NFR-943`) | specified, blocked on schema |
+| Offline device harness (`NFR-946`), sync burst load test (`NFR-947`), temporal assertions (`NFR-948`) | specified, blocked on schema |
 
-| Gate | Script | Status |
-|---|---|---|
-| Documentation integrity — no dangling or duplicate requirement identifiers | `scripts/check_docs.py` | live |
-| Traceability — non-doc commits reference a real requirement | `scripts/check_traceability.py` | live |
-| Database invariants — no `UPDATE`/`DELETE` grants on evidentiary tables; every tenant table has an RLS policy | `scripts/check_db_invariants.py` | skips until a schema exists |
-| Tenant isolation suite, including the delegated cross-tenant path | not yet written | blocked on schema (`NFR-202`, `NFR-206`) |
-| Tamper detection — mutate a *jornada* row directly, assert chain verification catches it | not yet written | blocked on schema (`NFR-943`) |
+The tamper-detection gate is the most important test in this codebase. It proves the product's
+central claim, and it is the one that silently stops mattering the day an `UPDATE` path is added.
 
-The last one is the most important test in this codebase. It proves the product's central claim,
-and it is the one that quietly stops mattering the day someone adds an `UPDATE` path.
+**On why most of these are not built yet.** This repository is deliberately design-first: the
+specification precedes the implementation, and CI configuration and test tooling are implementation.
+Everything above is specified — in `prd.md` §9.9 and in this table — and gets built by the session
+that has a schema and an API in front of it, per
+[`docs/prompts/prompt_testing_and_telemetry.md`](docs/prompts/prompt_testing_and_telemetry.md).
+`check_docs.py` is the exception because it guards the design artifacts themselves, which exist now.
+
+Do not take the current shape of this repository as licence to start implementing. If a task seems
+to call for application code, migrations, Terraform or CI configuration and no ADR covers it, stop
+and ask.

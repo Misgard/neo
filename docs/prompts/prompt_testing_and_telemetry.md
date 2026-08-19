@@ -23,13 +23,25 @@ before writing.
 
 ## 1. What already exists, and what you are adding
 
-Four release gates are already specified and three are already implemented in `scripts/`:
-documentation integrity, traceability, and the database invariant assertions (`NFR-944`,
-`NFR-945`), which skip until a schema exists. Tenant isolation (`NFR-202`, `NFR-206`), tamper
-detection (`NFR-943`), the offline harness (`NFR-946`), the burst load test (`NFR-947`) and the
-temporal assertions (`NFR-948`) are **specified but not built**.
+**One gate is implemented**: `scripts/check_docs.py`, which guards the design documents against
+dangling or duplicate requirement identifiers and ADR index drift. It exists because the design
+artifacts exist.
 
-Observability is specified in `NFR-601`–`NFR-608`. No tooling has been chosen.
+**Everything else is specified and deliberately unbuilt**, because this repository is design-first
+and test tooling is implementation. You are the session that builds them:
+
+| Gate | Specification |
+|---|---|
+| Traceability | Every commit touching anything outside `docs/`, `CLAUDE.md` and `README.md` must cite an `FR-`/`NFR-`/`INV-` identifier that exists in `prd.md`. A commit citing nothing, or citing an identifier that does not exist, fails. This is what keeps an implementation anchored to the specification; behaviour no requirement describes is either a defect or a missing requirement. |
+| Database invariants | `NFR-944` — no database role holds `UPDATE` or `DELETE` on an evidentiary table (`jornada`, `lista_asistencia`, `movimiento`, `archivo_idse`, `salario`, `desviacion`, overtime authorisations, `audit_log`), asserted against the live schema via `information_schema.role_table_grants`. `NFR-945` — every table carrying a company identifier has row-level security enabled *and* at least one policy; RLS without a policy and a policy without RLS are both silent defects. |
+| Tenant isolation | `NFR-202`, `NFR-206` — including the delegated cross-tenant path, which generic isolation tests do not cover. |
+| Tamper detection | `NFR-943` — the most important test in the codebase. |
+| Offline harness, burst load, temporal assertions | `NFR-946`, `NFR-947`, `NFR-948`. |
+
+**CI configuration is yours to write.** None exists. Decide the platform, what runs on every push
+versus nightly, and the runtime budget (§2.4).
+
+Observability is specified in `NFR-601`–`NFR-609`. No tooling has been chosen.
 
 You are producing the strategy that turns those requirements into an implemented system, and the
 technology decisions they imply.
