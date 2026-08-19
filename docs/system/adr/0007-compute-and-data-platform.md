@@ -67,6 +67,17 @@ dedicated-tenant databases that serverless connectors serve awkwardly; or the po
 platform engineer exists to operate a cluster. Any one of these opens the ADR that supersedes this
 one.
 
+**Capacity is deliberately not among them.** The capacity model in PRD §9.5 puts the stage 3
+viability envelope — 20,000 employees, ~200 companies — at roughly one *jornada* event per second
+sustained and ~267 per second at worst-case sync burst, against 32 GB of *jornada* rows per year.
+Both the container platform and a single managed PostgreSQL writer operate far below their ceilings
+there. Orchestration platform and capacity are independent questions: both options run the same
+containers, and changing orchestrator would not raise the employee ceiling by one. What binds at
+stage 3 is chain verification cost over accumulated history, export generation, job evaluation
+shape, dedicated-tenant count, and human operations — none of which an orchestrator touches
+(`NFR-507`). Of the four triggers above, the dedicated-database network path is the only one likely
+to fire on growth, and it scales with tenant count rather than employee count.
+
 ## Consequences
 
 **Positive.** Infrastructure cost lands inside target at launch, with cost scaling roughly with

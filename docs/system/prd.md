@@ -1487,24 +1487,49 @@ The important asymmetry: **capture availability is decoupled from platform avail
 
 ### 9.5 Scale envelope
 
+Envelopes are keyed to **volume, not to dates**, because dates slip and volume is what actually
+binds. The calendar horizon for stage 3 is `OQ-034`.
+
 | ID | Requirement |
 |---|---|
-| `NFR-501` | Launch envelope: ~10 companies, 500 employees, ~22,000 *jornada* events per month, ~90 *listas de asistencia* per month (`A-001`). |
-| `NFR-502` | 18-month design envelope: ~100 companies, 5,000 employees, ~220,000 events per month (`A-002`). |
-| `NFR-503` | The binding load is not steady state but the **sync burst**: many devices reconnecting simultaneously when a crew returns to a signal area, each uploading days of records. The ingest path is sized for burst, not for average. |
+| `NFR-501` | **Stage 1 — launch.** ~10 companies, 300–500 employees, ~44,000 *jornada* events per month, ~90 *listas de asistencia* per month (`A-001`). |
+| `NFR-502` | **Stage 2 — growth.** ~50 companies, 5,000 employees, ~440,000 events per month (`A-002`). |
+| `NFR-506` | **Stage 3 — commercial viability.** ~200 companies, 20,000 employees, ~1,760,000 events per month. This is the volume at which the business case closes, and it is the figure every capacity decision is checked against. |
+
+#### Capacity model
+
+Assuming four punches per employee per working day over 22 working days, and roughly 100
+employees per client across two devices per site:
+
+| | Stage 1 (500) | Stage 2 (5,000) | Stage 3 (20,000) |
+|---|---|---|---|
+| Events per month | 44,000 | 440,000 | 1,760,000 |
+| Sustained average | 0.02/s | 0.23/s | **0.93/s** |
+| Worst-case sync burst — every device uploading three days of backlog within 30 minutes | ~7 rec/s | ~67 rec/s | **~267 rec/s, ~0.4 MB/s** |
+| *Jornada* storage per year | 0.8 GB | 8 GB | **32 GB** |
+| *Jornada* storage at five years | 4 GB | 40 GB | **158 GB** |
+
+| ID | Requirement |
+|---|---|
+| `NFR-503` | The binding load is not steady state but the **sync burst**: many devices reconnecting simultaneously when a crew returns to a signal area, each uploading days of records. The ingest path is sized for the stage 3 burst above, not for the average. |
 | `NFR-504` | External anchoring cost is a function of time, not of tenant count or event volume (`FR-515`), and therefore does not scale with the business. |
-| `NFR-505` | Report and export generation over a full year of one company's data completes without blocking interactive use. |
+| `NFR-505` | Report, export and verification-bundle generation over any range is an **asynchronous, streamed background job** with observable progress and a retrievable result. It is never a request-response operation, because a single client-year at stage 3 is on the order of millions of records. |
+| `NFR-507` | **Neither compute nor the database is the binding constraint at stage 3.** At ~1 event per second sustained and ~267 per second at worst-case burst, the container platform and a single managed PostgreSQL writer both operate far below their ceilings. The constraints that do bind, in order, are: chain verification cost over accumulated history (`NFR-602`); export generation over large ranges (`NFR-505`); population-wide job evaluation shape (`NFR-508`); the count of dedicated-database tenants, which scales with tenants rather than employees (ADR-0001); and human operations — onboarding, face enrolment and support — which scale with tenant count. **A change of container orchestration platform addresses none of these**, and capacity is therefore not a valid trigger for one (ADR-0007). |
+| `NFR-508` | Jobs that evaluate a rule across the whole employee population — alert rule evaluation, metering rollups, expiry scanning, exposure computation — are **set-based operations executed in the database**, not per-row iteration in application code. At stage 3 this is the difference between milliseconds and hundreds of thousands of round trips. |
 
 ### 9.6 Observability
 
 | ID | Requirement |
 |---|---|
 | `NFR-601` | Per-tenant sync health, device fleet state, and unsynced-record age are observable and alertable. |
-| `NFR-602` | A scheduled job verifies every tenant chain end to end and alerts on any break (`FR-518`). Its last successful run per tenant is visible. |
+| `NFR-602` | A scheduled job verifies tenant chain integrity and alerts on any break (`FR-518`). Its last successful run per tenant is visible. Verification is **incremental against signed checkpoints** — each run verifies only the segment since the last verified checkpoint — because a full end-to-end verification is proportional to accumulated history and would grow slower every day for the life of the system. |
+| `NFR-609` | A **verification checkpoint** records the chain state at a point in time, is itself sealed and externally anchored, and is the only thing an incremental run trusts without re-deriving. Full end-to-end re-verification from origin runs on a slow schedule and on demand — notably before a verification bundle is produced for a dispute (`FR-530`) — and its cost is a known, budgeted operation rather than a routine one. |
 | `NFR-603` | External anchoring success, latency and cost are monitored, and a missed anchoring window alerts. |
 | `NFR-604` | Alert-subsystem health is itself monitored: alerts generated, delivered, acknowledged, escalated, breached. A silent alerting subsystem is indistinguishable from a compliant client and must not be. |
 | `NFR-605` | Logs, metrics and traces are correlated by request and by tenant, and contain no personal data. |
 | `NFR-606` | Adoption metrics per site feed both the company dashboard (`FR-907`) and the NEO staff dashboard (`FR-950`). |
+| `NFR-607` | The capture application reports **crashes and unhandled errors, buffered offline and uploaded at sync**. Because the application runs for days without connectivity, a crash at a remote site is otherwise invisible — or permanently lost if the process dies before it can report. Reports contain no personal data and no biometric material. |
+| `NFR-608` | Observability tooling cost is counted within the infrastructure target in `NFR-901`. Per-host or per-ingested-gigabyte pricing is evaluated against launch revenue before adoption, not after. |
 
 ### 9.7 Cost targets
 
@@ -1526,6 +1551,21 @@ choices are a product constraint, not an implementation detail.
 | `NFR-940` | A capture device holds at minimum 7 days of continuous offline operation for a crew of 200, including templates, records and captured photographs, and warns the operator at 70% of its stated envelope. |
 | `NFR-941` | *Expediente* document storage per employee has a stated soft limit and a per-file size limit, both surfaced to RH before an upload fails. |
 | `NFR-942` | Roster sync to a device is incremental. A device joining a large site does not require a full re-download of every template. |
+
+### 9.9 Verifiability and release gates
+
+The product's central claim — that a *jornada* record is tamper-evident — is falsifiable, and
+therefore testable. These requirements exist so that it is continuously tested rather than
+asserted. Each is a release gate.
+
+| ID | Requirement |
+|---|---|
+| `NFR-943` | **Tamper detection is proven by test.** The suite mutates a *jornada* row directly in the database, bypassing the application entirely, and asserts that chain verification detects the alteration and raises `FR-821`. This is the test that proves the product's central claim, and it is the one that silently stops mattering the day an `UPDATE` path is added. |
+| `NFR-944` | **No database role holds `UPDATE` or `DELETE` on an evidentiary table.** Asserted against the live schema, not in application code, because a schema-level guarantee cannot be bypassed by a code path added later. |
+| `NFR-945` | **Every tenant-scoped table has row-level security enabled and at least one policy.** Asserted against the live schema. RLS enabled with no policy, and a policy without RLS enabled, are both silent defects and both fail this gate. |
+| `NFR-946` | An **offline device test harness** exercises the capture application through the conditions it will actually meet: seven days without connectivity, a device clock moved backward and forward, a battery death mid-batch, a partially completed sync, and a sync resumed after the platform was unavailable. |
+| `NFR-947` | A **load test reproduces the sync burst** in `NFR-503` — many devices reconnecting simultaneously, each carrying days of records — because that burst, not steady state, is the binding load. |
+| `NFR-948` | The **temporal model is tested by time-travel assertions**: for a set of fixture employees, "what was true on date D" is asserted for assignment, wage, contract, IMSS affiliation and org position across dates that span every transition. |
 
 ---
 
@@ -1635,7 +1675,8 @@ If any of these is falsified, the requirements citing it must be revisited.
 | ID | Assumption |
 |---|---|
 | `A-001` | Launch envelope: approximately 10 client companies and 500 employees within three months of go-live, generating roughly 22,000 *jornada* events and 90 *listas de asistencia* per month. |
-| `A-002` | 18-month envelope: approximately 100 companies and 5,000 employees. This figure is inferred for design purposes, not stated by the business (`OQ-017`). |
+| `A-002` | Stage 2 growth envelope: approximately 50 companies and 5,000 employees. |
+| `A-017` | **Commercial viability requires approximately 20,000 employees across roughly 200 companies** (`NFR-506`). This is the figure the business case closes at, stated by the business. The calendar horizon for reaching it is not recorded (`OQ-034`). |
 | `A-003` | The first clients are construction companies whose operating conditions are as described in §1.1, and their contracts are imminent. |
 | `A-004` | Target clients already operate payroll software linked to their accounting system, and NEO's role is to feed it. |
 | `A-005` | Clients will provide, or their supervisors will carry, at least one device per crew meeting the minimum specification in `FR-480`. |
@@ -1914,6 +1955,19 @@ it, load it into a clearly separated, explicitly unsealed archive.
 **Recommendation: (a)** — do not sign an uptime SLA before the platform has operating history,
 particularly one covering a capture path that is deliberately designed to work while the platform
 is down.
+
+**`OQ-034` — Calendar horizon for the stage 3 viability envelope.**
+`NFR-506` sets 20,000 employees as the volume at which the business case closes, but no date is
+attached to it.
+(a) Treat 20,000 as an 18-month target. (b) Treat it as a three-year target. (c) Leave it undated
+and manage against volume alone.
+*Trade-off:* nothing in the architecture changes between these — §9.5's capacity model shows the
+compute and data layers are far from binding at 20,000 either way. What changes is what "on track"
+means, when the dedicated-database tenant count starts to matter, and when hiring for operations
+has to begin.
+**Recommendation: (c) for engineering, with a date attached for the business.** Capacity
+requirements should stay keyed to volume, because that is what binds; but the operations and
+support headcount plan needs a date, and so does any conversation about the ADR-0007 triggers.
 
 **`OQ-033` — Web and container framework for the shared UI codebase.**
 (a) A single web UI codebase in one framework, wrapped for mobile in a native container with

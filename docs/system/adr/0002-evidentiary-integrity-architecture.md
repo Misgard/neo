@@ -77,6 +77,13 @@ them as configuration. The verification story is explainable to a *perito* in on
 requiring their own custody discipline. Sealing introduces a bounded latency between capture and
 "sealed", during which a record is stored but not yet anchored.
 
+**Verification cost is proportional to accumulated history**, and that is the one property of this
+design that degrades with time rather than with load. Routine verification is therefore incremental
+against signed, anchored checkpoints, and full re-derivation from origin is a budgeted operation run
+on a slow schedule and before a verification bundle is produced for a dispute (`NFR-602`,
+`NFR-609`). A design that re-verified every chain end to end on every run would get slower every day
+for the life of the system.
+
 **Neutral.** TSA dependency is real but replaceable; the design deliberately admits more than one
 anchor per root.
 
