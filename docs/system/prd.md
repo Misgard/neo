@@ -2406,9 +2406,21 @@ NEO still belongs to the tenant. (b) Model the subcontractor's workforce as well
 scope entirely.
 **Recommendation: (a) for v1.** It captures the obligation NEO can see and alert on, without
 taking on a multi-*patrón* workforce model that would touch tenancy, billing and the *jornada*
-record's attribution all at once. Confirm with the first construction clients how much of their
-workforce is subcontracted — if it is most of it, (b) becomes a v1 question rather than a later
-one.
+record's attribution all at once.
+→ **RESOLVED 2026-08-20 for the workforce: out of scope.** Where a NEO client subcontracts part of
+an *obra*, the subcontracted company is the *patrón* and the *responsable* for those workers. Their
+*jornada* is not the client's compliance obligation and NEO does not model them. A client may run
+*reloj checador* over subcontracted crews for site access control, which is a product use, not a
+compliance one, and carries none of the IMSS consequences in §6.6.
+**Open remainder — the notice obligation.** The workforce is out of scope; the *notification* may
+not be. Sources consulted for §6.6.2 indicate that the party who subcontracts must notify the IMSS
+of the subcontract within five *días hábiles* of executing it — an obligation that falls on the NEO
+client, not on the subcontractor, and that survives the workforce being someone else's. `FR-651`
+and `FR-839` cover exactly that and nothing more: record the relationship, alert on the deadline.
+(a) Keep them. (b) Drop subcontracting from the PRD entirely.
+**Recommendation: (a)**, confirmed under `OQ-001`. The surface is one relationship record and one
+alert; the cost of being wrong the other way is an unnotified subcontract discovered during an
+inspection.
 
 **`OQ-035` — Is the IMSS five-day filing window counted in calendar or working days? — RESOLVED
 2026-08-20: business days (*días hábiles*).** `FR-614` states it, and business-day arithmetic
