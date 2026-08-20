@@ -53,6 +53,11 @@ require it, stop and say so.
 9. **Timestamps** are stored in UTC with the originating IANA zone retained; *jornada* is classified
    in the workplace's local zone. (`FR-011`, `FR-012`)
 10. **Money** is MXN minor units as integers. No floating-point money anywhere. (`FR-015`)
+11. **NEO surfaces; a person employed by the *patrón* decides.** No automated action may produce a
+    consequence for a worker — leaving a site, losing pay, a changed classification, a closed
+    conflict, a resolved identity. Elapsed time escalates a decision and never makes one: nothing
+    is auto-resolved on timeout. This is the invariant most easily eroded by convenience, because
+    every violation of it looks like a helpful default. (`FR-080`, `FR-081`, PRD §2.3a)
 
 ## Conventions
 

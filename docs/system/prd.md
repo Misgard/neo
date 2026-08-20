@@ -165,6 +165,32 @@ tenancy in this document is written against that threat model. `FR-501` (no dest
 and `INV-003` (integrity anchors outside the client's control) are its two clearest
 expressions.
 
+### 2.3a NEO warns; the *patrón* decides
+
+A second stance follows from the first, and it is the one most easily eroded by convenience.
+
+**NEO never makes a decision that carries a consequence for a worker.** It surfaces discrepancies,
+states what is at stake, routes them to a named human employed by the *patrón*, and records what
+that person decided. It does not send anyone home, does not reclassify a *falta* as *vacaciones*,
+does not resolve a duplicate, does not accept an IMSS match on a probable name, and does not close
+a conflict because a threshold elapsed.
+
+The immediate benefit is practical: the data may be wrong. An *incapacidad* record that names the
+wrong employee, or was never closed when it ended, would cost a healthy worker a day's pay if NEO
+acted on it directly (`FR-1376`). Verification by someone who can check is not bureaucracy — it is
+the only thing standing between a data error and a person's wages.
+
+The structural benefit is that it keeps NEO in the role it actually holds. The company is the
+*responsable* and NEO is the *encargado* (§2.6). A system that decided employment consequences
+would be acting in a capacity it does not have and cannot support, and every such decision would
+be one the *patrón* did not make and cannot explain. Whether this posture carries any specific
+legal weight is for counsel (`OQ-001`); that it produces a better record, and a fairer one, does
+not depend on the answer.
+
+This is a rule about **automation**, not about speed. NEO should make the human decision fast —
+prompt it, route it, escalate it, put the consequence in front of the person — and never make it
+for them.
+
 ### 2.4 *Reglamentación pendiente*: isolating the law from the implementation
 
 Source: brief §1.
@@ -679,6 +705,8 @@ Source: brief §1 (*reglamentación pendiente*), §2.4.
 | `FR-076` | The rule set version used to produce any report or export is recorded on that artifact and shown to the reader, **together with the declared legal basis of any non-default rule set it applied** (`FR-078`). |
 | `FR-077` | A rule set is assignable at company, *registro patronal*, *centro de trabajo*, crew or individual employee level. Rotating arrangements such as *12x12* belong to a crew rather than to a person, and the assignment level must be able to say so (`OQ-039`). |
 | `FR-078` | A rule set that departs from the statutory default — a compressed or rotating *jornada*, a non-standard weekly limit — records a **declared legal basis**: what instrument permits it, typically a *contrato colectivo* or an individual agreement, with the supporting document attached. It may be applied with the document still pending, flagged and escalating on the document ladder (`FR-807`), on the same principle as an unevidenced *registro patronal* (`FR-213`). Blocking would stop lawful work over paperwork. |
+| `FR-080` | **NEO surfaces; a person employed by the *patrón* decides.** No automated action in this system may produce a consequence for a worker — leaving a site, losing a day's pay, a changed classification, a closed conflict, a resolved identity. Where such a consequence follows, a named human of the *patrón* made the call and the system records who, when, on what information, and what they were told was at stake (§2.3a). |
+| `FR-081` | Elapsed time **escalates a decision; it never makes one**. No requirement may be satisfied by an automatic resolution on timeout — a conflict left unresolved stays unresolved, visibly and loudly (`FR-813`, `FR-1378`), rather than being closed by the clock. A default applied by silence is a decision nobody made and nobody can account for. |
 | `FR-079` | **NEO records the basis a client declares; it does not assess its legality.** The *patrón* is the *responsable*, NEO is the *encargado*, and nothing in this system constitutes an opinion that an arrangement is lawful. What the system guarantees is that the basis travels with every record classified under it, so an inspector or a *perito* sees which rules were applied and on whose authority — which is more useful to everyone than a judgement NEO is not competent to make (`OQ-200`). |
 
 ### 6.2 Users, roles and permissions
