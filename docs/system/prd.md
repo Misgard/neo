@@ -666,15 +666,25 @@ Source: brief §2; §4 of this document.
 
 ### 6.3 Organisational structure and *registros patronales*
 
+> **Terminology.** Where this document says *ubicación*, *proyecto*, *obra*, *división*,
+> *departamento*, *área* or *frente*, it means a `CENTRO_TRABAJO` of that type (`FR-201`). The
+> Spanish nouns are kept in the requirement text because that is what users will call them; they
+> are not separate entities.
+
 Source: brief §3.4, §3.5.
 
 | ID | Requirement |
 |---|---|
-| `FR-201` | A company defines its own *ubicaciones de trabajo*, *proyectos* (including *obras*), *divisiones*, *departamentos* and organisational chart, with no structure imposed by NEO. |
+| `FR-201` | A company's structure is modelled as **one entity — the *centro de trabajo* — carrying a name and a type**, not as separate entities per kind. *Obra*, *proyecto*, *ubicación*, *división*, *departamento*, *área* and *frente* are types, and the vocabulary is the company's own. NEO imposes no taxonomy. |
+| `FR-216` | *Centros de trabajo* nest: each may have a parent, forming the company's structure. A *frente* sits under an *obra*, an *obra* under a *división*. Depth is not fixed and cycles are rejected (`FR-105`). |
+| `FR-217` | **Behaviour is declared on the type, never inferred from its name.** A type declares whether instances of it may host *jornada* capture, carry a completion state (`FR-209`), hold a *registro patronal*, and require a geofence (`FR-204`). This is what keeps one flexible entity from becoming a shapeless one: a company may call an *obra* whatever it likes, but whether that thing can be completed or can host a check-in is declared, not guessed. |
+| `FR-218` | A *centro de trabajo* carries an **address**, at a granularity sufficient to determine the IMSS region it falls in. |
+| `FR-219` | A *centro de trabajo* whose type permits it may be attached to a *registro patronal*, at a date. The attachment is temporal: a *centro de trabajo* can exist before its *registro patronal* does. |
 | `FR-202` | A company may hold multiple *registros patronales*. Construction clients commonly hold one per *obra*. |
 | `FR-203` | A *registro patronal* records its IMSS registration identifier, its *clase* and *prima de riesgo*, the *delegación*/*subdelegación*, its effective dates, and the *ubicaciones* or *proyectos* it covers. |
 | `FR-204` | A *ubicación* carries a geographic reference and a geofence radius, both effective-dated, because an *obra* perimeter changes as the work advances. |
-| `FR-205` | An employee's assignment to a *registro patronal* and to a *ubicación*/*proyecto* is **temporal**: it has a start, an optional end, and the system can answer the assignment as of any past date. |
+| `FR-205` | An employee's assignment to a *centro de trabajo* and, separately, to a *registro patronal* are both **temporal**: each has a start, an optional end, and the system can answer either as of any past date. They are independent assignments, and the second may begin later than the first (`FR-339`). |
+| `FR-220` | When a *registro patronal* is attached to a *centro de trabajo* (`FR-219`), every employee assigned there may be given the corresponding *registro patronal* assignment in **one reviewed action**, backdated by default to the start of each employee's assignment to that *centro de trabajo*. Backdating is the default because it reflects what happened: the worker was at that *obra* from their first day, and the *obra* belongs to that *registro patronal*. The operator may override per employee, and the action is audited. |
 | `FR-206` | An employee may be assigned to more than one *ubicación* or *proyecto* concurrently, and may move between them within a single day. |
 | `FR-207` | An employee may be simultaneously registered under two or more *registros patronales* of the same company. This is legitimate and is never blocked, but it raises a review alert (`FR-808`). |
 | `FR-208` | Closing a *ubicación*, *proyecto* or *registro patronal* is an end-date, never a delete. Historical records remain attached to it and remain readable. |
@@ -733,6 +743,8 @@ Source: decision `B5`.
 | `FR-335` | On sync, every provisional employee enters RH's completion queue, with the age of the provisional state visible and escalating. |
 | `FR-336` | On sync, every newly created employee is checked for duplication against the company's existing employees on *CURP*, *NSS*, and biometric similarity, and any candidate match enters a **duplicate review queue** for human resolution. Duplicates are never merged automatically. |
 | `FR-337` | Opening an employment relationship is independent of any IMSS filing. Nothing about the IMSS lifecycle gates it (`INV-020`). |
+| `FR-339` | **Opening an employment relationship requires a *centro de trabajo*. It does not require a *registro patronal*.** The *registro patronal* may not exist yet — the IMSS mints the number when the *obra* is registered — so making it a precondition of hiring would stop work that is already lawfully happening. A *centro de trabajo*, its address and a start date are the minimum to put someone to work (`INV-054`). |
+| `FR-340` | An employee with no *registro patronal* assignment is a **normal, expected state during the *días hábiles* window and while a *registro patronal* is pending**, not an error. It is visible, it is counted in exposure reporting, and it is never blocked. |
 | `FR-338` | An employment relationship is closed by an explicit **operational *baja*** recorded in NEO. The IMSS *baja* does not close it, and closing it does not file anything with the IMSS. |
 
 ### 6.5 Evidentiary subsystem, *lista de asistencia*, and record integrity
@@ -937,7 +949,7 @@ modules.**
 
 | ID | Rule |
 |---|---|
-| `FR-802` | **Working without an IMSS *alta*.** An employee with *jornada* records and no matching active IMSS *alta*. Fires at the configured lead time before the five-day deadline, escalates at the deadline, breaches after it. |
+| `FR-802` | **Working without an IMSS *alta*.** An employee with *jornada* records and no matching active IMSS *alta*. Fires at the configured lead time before the five-*día hábil* deadline, escalates at the deadline, breaches after it. **The alert distinguishes its cause**, because the two have different owners and different remedies: *alta* not yet filed, which RH can act on today; or **no *registro patronal* available to file under** (`FR-834`), which RH cannot act on at all and which is routed to whoever is chasing the IMSS. An alert telling someone to file an *alta* that cannot be filed is unactionable, and unactionable alerts are how a compliance product teaches people to ignore it. |
 | `FR-803` | **IMSS *alta* filed, never seen.** An employee with an active IMSS affiliation and no *jornada* record for a configured interval. |
 | `FR-804` | ***Jornada* after an IMSS *baja*.** *Jornada* records exist for an employee after a *baja* took effect. Severity critical — a worker is working uninsured. |
 | `FR-805` | **Operational *baja* without an IMSS *baja*.** An employment relationship closed in NEO with no corresponding IMSS *baja* filed within the statutory window. |
@@ -957,6 +969,9 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-834` | ***Centro de trabajo* without a *registro patronal*.** A *centro de trabajo* hosting *jornada* capture with no *registro patronal* attached beyond a configured period. Every worker there is accruing exposure that nobody can clear until the *registro patronal* is issued. Routed to Admin, not to RH, because the remedy is with the IMSS and not in the *expediente*. |
+| `FR-835` | ***Registro patronal* mismatch between employee and workplace.** An employee's assigned *registro patronal* differs from the one attached to the *centro de trabajo* where their *jornada* is being captured. Detected from either direction — a worker hired under the wrong *registro patronal*, or a worker working at the wrong *centro de trabajo* — because the two are the same inconsistency seen from opposite ends and the system cannot tell which is the error. Both readings are presented to the reviewer. |
+| `FR-836` | **Region mismatch.** The IMSS region implied by a *centro de trabajo*'s address differs from the region of the *registro patronal* attached to it. Raises a review alert and **never blocks operation** — the mismatch may be a data error, a misclassified address, or a genuine and defensible arrangement, and NEO is not the authority on which. |
 | `FR-833` | **IMSS rejected a *movimiento*.** An ingested constancia reports `rechazados > 0`. The affected workers are not registered, their five-day clocks are still running, and the *patrón* may believe the filing succeeded. Routed to RH and Admin at severity high; escalates on the same ladder as `FR-802`. |
 | `FR-832` | **Deviation without documentation.** A registered *desviación* whose promised supporting document has not arrived within the configured interval (`FR-1338`). |
 
@@ -1301,15 +1316,16 @@ temporal semantics, and the invariants that must always hold.
 ```mermaid
 erDiagram
     COMPANY ||--o{ REGISTRO_PATRONAL : "holds"
-    COMPANY ||--o{ UBICACION : "defines"
-    COMPANY ||--o{ PROYECTO : "defines"
-    COMPANY ||--o{ ORG_NODE : "defines"
+    COMPANY ||--o{ CENTRO_TRABAJO : "defines"
+    COMPANY ||--o{ TIPO_CENTRO : "defines vocabulary"
+    CENTRO_TRABAJO }o--|| TIPO_CENTRO : "is of type"
+    CENTRO_TRABAJO ||--o{ CENTRO_TRABAJO : "contains"
+    CENTRO_TRABAJO }o--o| REGISTRO_PATRONAL : "attached to, from a date"
     COMPANY ||--o{ EMPLEADO : "employs"
     COMPANY ||--|| BILLING_ACCOUNT : "billed via"
     DESPACHO ||--o{ BILLING_ACCOUNT : "may hold"
 
     EMPLEADO ||--o{ RELACION_LABORAL : "has over time"
-    EMPLEADO ||--o{ ASIGNACION : "assigned over time"
     EMPLEADO ||--o{ SALARIO : "paid over time"
     EMPLEADO ||--o{ DOCUMENTO : "expediente"
     EMPLEADO ||--o{ CONTRATO : "signed"
@@ -1318,8 +1334,10 @@ erDiagram
     EMPLEADO ||--o{ JORNADA : "records"
     EMPLEADO ||--o{ MOVIMIENTO : "filed for"
 
-    ASIGNACION }o--|| REGISTRO_PATRONAL : "under"
-    ASIGNACION }o--|| UBICACION : "at"
+    ASIGNACION_CENTRO }o--|| CENTRO_TRABAJO : "at"
+    ASIGNACION_RP }o--|| REGISTRO_PATRONAL : "under"
+    EMPLEADO ||--o{ ASIGNACION_CENTRO : "required from hire"
+    EMPLEADO ||--o{ ASIGNACION_RP : "optional, may begin later"
 
     ARCHIVO_IDSE ||--o{ MOVIMIENTO : "contains many"
     ARCHIVO_IDSE ||--o{ MOVIMIENTO_RECHAZADO : "contains many"
@@ -1405,6 +1423,15 @@ flowchart TD
 - **`MOVIMIENTO_RECHAZADO`** is a row the IMSS refused. It is evidence that a filing was attempted
   and failed, which is a different fact from never having filed — and it never touches affiliation
   state, because nothing was registered (`FR-647`).
+- **`CENTRO_TRABAJO`** is the single entity for everything a company calls a place or a unit of
+  structure — *obra*, *proyecto*, *ubicación*, *división*, *departamento*, *área*, *frente*. It
+  nests, carries an address, and takes its behaviour from its `TIPO_CENTRO`: whether it can host
+  *jornada*, be completed, hold a *registro patronal*, require a geofence (`FR-217`). One entity
+  with declared capabilities, rather than one entity per noun or one shapeless node.
+- **The two assignments are separate and independent.** `ASIGNACION_CENTRO` is required from the
+  first day of employment; `ASIGNACION_RP` is optional and frequently starts later, because the
+  IMSS mints the *registro patronal* number when the *obra* is registered and the workers are
+  lawfully on site before that happens (`FR-339`, `INV-054`).
 - **`REGISTRO_PATRONAL`** is a registry row owned by the *patrón*, carrying the IMSS region and
   evidenced by an **`ARCHIVO_ALTA_RP`**. Everything that names a *registro patronal* points at this
   row rather than repeating its identifier as text (`INV-052`), which is what lets ingestion refuse
@@ -1459,7 +1486,9 @@ These must hold at all times, and each is testable.
 | `INV-031` | The partner role never owns tenant data. Where a *despacho* is also a tenant in its own right, its tenant identity and its partner identity are distinct entities, and neither confers the access or the billing consequences of the other. |
 | `INV-040` | The billable employee count for any past month is recomputable from the `RELACION_LABORAL` timeline alone, and recomputation yields the figure that was invoiced. |
 | `INV-041` | An employee contributes at most one to the billable count on any given day, regardless of how many concurrent *registros patronales*, *proyectos* or open `RELACION_LABORAL` records they hold within the same tenant. |
-| `INV-052` | Every *movimiento*, *asignación* and export cites a *registro patronal* by reference to a row in its own tenant's registry. A *registro patronal* held as free text, or resolving to another tenant's registry, is not a valid state. |
+| `INV-052` | Wherever a *registro patronal* is named — a *movimiento*, a *registro patronal* assignment, a *centro de trabajo* attachment, an export — it is a reference to a row in its own tenant's registry. Free text, or a reference resolving to another tenant's registry, is not a valid state. The invariant governs *how* a *registro patronal* is cited, not whether one must be cited: an employee or a *centro de trabajo* may legitimately have none yet (`FR-339`, `FR-219`). |
+| `INV-054` | Every open `RELACION_LABORAL` has a *centro de trabajo* assignment covering every day it is open. A *registro patronal* assignment is optional and may begin later. |
+| `INV-055` | A *centro de trabajo* may be attached to at most one *registro patronal* at any instant, though it may be attached to different ones over time. |
 | `INV-053` | Every *registro patronal* belongs to exactly one *patrón*, and a *patrón* may hold many. |
 | `INV-050` | Every biometric template is linked to an active, unrevoked consent. Revocation makes the template unusable and schedules its deletion. |
 | `INV-051` | No raw facial image is retained beyond the retention rule declared for it, and the declared rule is visible to the company Admin and to the worker. |
