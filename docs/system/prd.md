@@ -480,6 +480,29 @@ the chosen alternative.
 enrolment flow must work fully offline on the supervisor device and reconcile at sync — see
 `FR-334`.
 
+### UJ-00 — The life of an *obra*
+
+Source: the *patrón*'s workflow description, 2026-08-20. Every other journey sits inside this one.
+
+```mermaid
+flowchart TD
+    K["Contract kick-off<br/>project created in NEO"] --> P["Physical start<br/>first workers on site<br/>FR-225 — all clocks start here"]
+    P --> H["Hiring, on site or off<br/>three documentation tiers<br/>FR-341"]
+    H --> D["Daily reloj checador<br/>roster, check-in, breaks,<br/>incidencias at source<br/>FR-1350, FR-1355"]
+    P --> W{"Five dias habiles<br/>from physical start"}
+    W --> RP["Registro patronal<br/>FR-840 — root of the window"]
+    RP --> S["SIROC obra registration<br/>FR-837"]
+    RP --> I["IDSE movimientos<br/>FR-802"]
+    D --> INC["Weekly incidencias<br/>delivered on schedule<br/>FR-728"]
+    S --> SC["Ongoing SIROC submissions<br/>NEO supplies the data<br/>FR-650, OQ-036"]
+```
+
+The ordering is the point. A project exists in NEO before anyone is on site; the clocks start
+when people do, not when the contract is signed. Hiring and daily capture proceed regardless of
+whether any registration exists yet. And the *registro patronal* is the root of the compliance
+window — SIROC and IDSE both wait on it, which is why `FR-840` fires first and the others name it
+as their cause rather than presenting as separate failures.
+
 ### UJ-03 — Daily attendance capture at the *frente* (Supervisor, offline)
 
 Supervisor opens the app at the gate with no signal. The crew roster for their subtree is
@@ -683,6 +706,8 @@ Source: brief §3.4, §3.5.
 | `FR-221` | A type may declare that its instances **require registration in SIROC** — the IMSS *Servicio Integral de Registro de Obras de Construcción*, mandatory for construction works since 2017. This is a further capability on `FR-217`, which is what lets a regulatory obligation this specific be absorbed without restructuring the entity. |
 | `FR-222` | A *centro de trabajo* requiring SIROC registration records its **SIROC identity**: the registration folio, the registration date, its current status, the phases registered against it, and the declared attributes the registration was made on — at minimum the address, and the budget and surface, because a change to those is itself a reportable event (`FR-649`). |
 | `FR-223` | **Every construction employee's assignment resolves to a SIROC-registered *obra*.** Where the *obra* is not yet registered, the assignment stands and the gap is exposure, never a block — the *obra* exists and people are working on it before the registration is filed, exactly as with the *registro patronal* (`FR-339`). |
+| `FR-225` | A *centro de trabajo* records a **fecha de inicio físico** — the first day workers are on site — distinct from the date it was created in NEO and from any contract date. **Every statutory clock runs from the physical start**, not from the commercial one (`FR-649`, `FR-614`). A project is created in NEO before work begins; the clocks do not start until people do. |
+| `FR-226` | The obligations of the five-*día hábil* window have a **fixed order of dependency**: the *registro patronal* must exist before the *obra* can be registered in SIROC, and before any *movimiento* can be filed in IDSE. The *registro patronal* is therefore the critical path, and alerts reflect it — a system that tells a client to register in SIROC while no *registro patronal* exists is naming a step they cannot take (`FR-802`, `FR-837`, `FR-840`). |
 | `FR-224` | SIROC registration is **temporal and independent of the *registro patronal***. An *obra* may hold one, both or neither at a given moment, and the system can answer which as of any past date. |
 | `FR-202` | A company may hold multiple *registros patronales*. Construction clients commonly hold one per *obra*. |
 | `FR-203` | A *registro patronal* records its IMSS registration identifier, its *clase* and *prima de riesgo*, the *delegación*/*subdelegación*, its effective dates, and the *ubicaciones* or *proyectos* it covers. |
@@ -749,6 +774,8 @@ Source: decision `B5`.
 | `FR-337` | Opening an employment relationship is independent of any IMSS filing. Nothing about the IMSS lifecycle gates it (`INV-020`). |
 | `FR-339` | **Opening an employment relationship requires a *centro de trabajo*. It does not require a *registro patronal*.** The *registro patronal* may not exist yet — the IMSS mints the number when the *obra* is registered — so making it a precondition of hiring would stop work that is already lawfully happening. A *centro de trabajo*, its address and a start date are the minimum to put someone to work (`INV-054`). |
 | `FR-340` | An employee with no *registro patronal* assignment is a **normal, expected state during the *días hábiles* window and while a *registro patronal* is pending**, not an error. It is visible, it is counted in exposure reporting, and it is never blocked. |
+| `FR-341` | An employee may be created at any of three **documentation tiers**, and *jornada* capture works identically at all three: **complete** *expediente*; **identity plus fiscal** — official ID, *RFC* and *NSS*; or **identity only**, an official ID and nothing else. The third is common when a client is rushing to start an *obra*. |
+| `FR-342` | Each tier declares **what it blocks downstream**, and the gap is reported as that consequence rather than as a missing field: without an *NSS* no IMSS *movimiento* can be filed, so the five-*día hábil* clock cannot be stopped; without an *RFC* the fiscal relationship cannot be formalised. Tier gaps escalate on the document ladder (`FR-807`) and are visible per *centro de trabajo*, because a crew hired on identity alone is a concentration of exposure, not a set of unrelated omissions. |
 | `FR-338` | An employment relationship is closed by an explicit **operational *baja*** recorded in NEO. The IMSS *baja* does not close it, and closing it does not file anything with the IMSS. |
 
 ### 6.5 Evidentiary subsystem, *lista de asistencia*, and record integrity
@@ -947,6 +974,8 @@ Source: brief §3.8, and the payroll boundary.
 | `FR-724` | Overtime is reported as classified hours under the rule set in force (`FR-072`). Whether it is further split into statutory sub-categories is a per-company configuration. |
 | `FR-725` | The report's default delivery is a file export in a mapping the client configures, plus a read API. Per-vendor connectors are not built in v1 (`OQ-007`). |
 | `FR-726` | Every *incidencia* in the report traces back to the *jornada* records or the *expediente* documents that produced it, and that trace is retrievable. |
+| `FR-728` | The *incidencias* report is **delivered on a schedule the company sets** — day of week, day of *periodo*, or day of month — to the named roles that consume it, without anyone requesting it. Payroll runs on a rhythm; a report that must be remembered is a report that gets remembered late. |
+| `FR-729` | Scheduled delivery states the **coverage window and the report's version**, and a later correction produces a delta (`FR-727`) rather than a silently different file under the same name. |
 | `FR-727` | A *periodo* can be closed. After close, new corrections affecting it produce a **delta report** rather than silently altering a report already handed to payroll. |
 
 ### 6.8 Alerting
@@ -992,6 +1021,8 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-840` | ***Registro patronal* missing at physical start.** A *centro de trabajo* has a *fecha de inicio físico* and no *registro patronal*. This is the **root alert of the window**: SIROC registration and IDSE *movimientos* both depend on it (`FR-226`), so it fires first, and the alerts that depend on it name it as their cause rather than firing as independent failures. |
+| `FR-841` | **Crew hired below full documentation.** A *centro de trabajo* where employees are working at the identity-only or identity-plus-fiscal tier (`FR-341`), reported as a concentration with what each tier blocks (`FR-342`). |
 | `FR-837` | ***Obra* not registered in SIROC.** A *centro de trabajo* whose type requires SIROC registration (`FR-221`), with work under way and no registration folio recorded. Fires ahead of the five-*día hábil* deadline, escalates at it, and states the consequence in `FR-652`. Routed to Admin, like `FR-834`, because the remedy is a filing with the IMSS and not an *expediente* correction. |
 | `FR-838` | **SIROC registration attributes changed without notice.** A recorded change to an attribute the registration was made on — address, budget, surface — with no corresponding notice within five *días hábiles* (`FR-649`). |
 | `FR-839` | **Subcontracting not notified.** A *contratista* or *subcontratista* relationship recorded against an *obra* with no SIROC notice within five *días hábiles* of the contract (`FR-651`). |
@@ -1329,6 +1360,28 @@ exists to prevent. They are adjudicated by a human with authority over the revok
 | `FR-1495` | Application secrets are injected at runtime from the secret manager, never baked into an image and never held in source control. |
 | `FR-1496` | Access to a secret or a key is logged, attributable and alertable. |
 | `FR-1497` | No secret, key, credential verifier or biometric template appears in any backup, export or support surface reachable by NEO staff (`NFR-103`). |
+
+#### 6.13.4 The supervisor's daily roster
+
+Source: the *patrón*'s workflow description, 2026-08-20. This is the screen a supervisor actually
+works from, and the PRD described the capture event without describing the day around it.
+
+| ID | Requirement |
+|---|---|
+| `FR-1350` | The capture application presents the supervisor a **roster of every employee under their `ORG_SUBTREE` expected at that *centro de trabajo* today**, resolved on the device and available offline. |
+| `FR-1351` | The roster shows live state per employee: **checked in, on break, checked out, or not yet seen**. Its purpose is not the check-in — it is letting the supervisor see, at a glance, who is missing. |
+| `FR-1352` | An employee who has not appeared by a configured point in the shift is surfaced as **absent-so-far**, and the supervisor can record why against them on the spot — including as an *incidencia* (`FR-1355`). Most supervisors know their crew; the roster exists for the cases they do not, such as a new hire who never arrived. |
+| `FR-1353` | An employee **given *baja* or reassigned away no longer appears** on the roster from the effective date. Their historical records remain intact and attributed. |
+| `FR-1354` | A worker present at the site but **not on the roster** is a first-class case, not an error state. The supervisor sees the discrepancy, and it resolves one of three ways: a field enrolment for a genuinely new hire (`FR-330`); an assignment correction for someone at the wrong *centro de trabajo* (`FR-835`); or a refusal for someone already given *baja*, which is recorded — an attempt to check in after *baja* is a fact worth keeping, not a null result. |
+
+#### 6.13.5 *Incidencias* captured at source
+
+| ID | Requirement |
+|---|---|
+| `FR-1355` | *Incidencias* are **captured at the moment they occur**, by the supervisor on the device, offline. They are not only derived after the fact from gaps in the *jornada* record. Both origins are recorded and distinguished. |
+| `FR-1356` | Each *incidencia* type carries a **process definition**: which role is notified, what process the notification tells them to start, and any deadline that process is subject to. An *accidente de trabajo* is the clearest case — it starts a *riesgo de trabajo* process with its own IMSS obligations, and the value of capturing it on the device is that the clock starts the hour it happened rather than at the end of the *periodo*. |
+| `FR-1357` | Recording an *incidencia* notifies the responsible role with the employee, the *centro de trabajo*, the type, and **what they must now do** — routed through the alerting subsystem so it escalates and never merely appears once (`FR-813`). |
+| `FR-1358` | Capturing an *incidencia* never blocks or replaces the *jornada* record for that day. The two coexist: what the worker did, and what happened to them. |
 
 ---
 
@@ -2321,6 +2374,8 @@ records only, with no export.
 impossible to miss and hands over everything needed to meet it, without holding the client's
 credentials or filing on their behalf. (b) is a small increment on (a) once the exact formats are
 confirmed and is a good second step, not a first one.
+→ **RESOLVED 2026-08-20: (a).** NEO supplies the users who hold the permission with the information
+they need to complete each SIROC submission themselves. NEO does not file.
 
 **`OQ-037` — Is subcontracting in scope, and if so how far?**
 A construction *obra* commonly runs through *contratistas* and *subcontratistas*, each potentially
