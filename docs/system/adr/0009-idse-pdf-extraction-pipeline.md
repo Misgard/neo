@@ -139,10 +139,22 @@ assertion would reject valid IMSS output (`FR-636`). Two date formats coexist in
 five-day clock running (`FR-633`, `FR-833`). Rows carry an *extemporáneo* flag — the IMSS's own
 lateness assessment — and a *tipo de trabajador* class specific to construction (`FR-638`, `FR-639`).
 
+**Since confirmed by the *patrón*.** Rejected rows *are* itemised, in a *Relación de Movimientos
+Rechazados* block, so a rejection attaches to a named worker rather than only to a count (`FR-633`).
+The filing window is five *días hábiles*, which makes the exposure clock depend on the Mexican
+holiday calendar and therefore on the versioned rule set rather than on hard-coded arithmetic
+(`FR-614`).
+
+**A second artifact type.** The IMSS *alta de registro patronal* is ingested on the same terms and
+evidences a row in the *patrón*'s registry of valid *registros patronales* (`FR-642`, `FR-210`).
+Making *registro patronal* a reference rather than free text (`FR-211`, `INV-052`) turns ingestion
+into a tenant-integrity boundary: a constancia is now checked against the tenant's *RFC* and against
+its registry before any *movimiento* commits, so another *patrón*'s document is refused outright
+instead of being parsed into this tenant's history (`FR-645`, `FR-646`).
+
 **Still outstanding.** One layout is verified. Samples of an *alta*, a *baja*, a *modificación de
-salario*, and a document with `rechazados > 0` remain needed — the last because it is unknown whether
-rejected rows are itemised or only counted. `OQ-035` asks whether the five-day window runs in calendar
-or working days.
+salario*, a document with `rechazados > 0`, and an *alta de registro patronal* remain needed for
+template authoring. None blocks the pipeline.
 
 ## Fixture handling
 
