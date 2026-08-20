@@ -1038,6 +1038,8 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-844` | **Worked while on registered absence.** A *jornada* record exists for a day the employee was recorded as on *vacaciones*, *incapacidad* or *permiso sin goce* (`FR-1366`). Routed to RH and the *contador* before the *periodo* closes, because after payroll runs the remedy is a correction rather than a decision. *Incapacidad* escalates immediately. |
+| `FR-845` | **Exception registered long after the fact.** An absence exception entered well after the date it covers (`FR-1369`), beyond a configured lag. Surfaced for review, not blocked — late paperwork and retroactive reclassification look identical at the moment of entry and only a human can tell them apart. |
 | `FR-842` | ***Obra* completed, not closed in SIROC.** A *centro de trabajo* requiring SIROC registration (`FR-221`) marked complete with no closure notice recorded. Escalates, and states the consequence: the *obra* stays open on the IMSS's books and is exposed to audit (`FR-653`). Routed to Admin. |
 | `FR-843` | **Employees still registered under a completed *obra*.** One or more employees hold an active IMSS affiliation under an *obra* that has been completed. Lists them by name and counts down, because this is the item that makes an *obra* closure incomplete and the one most easily forgotten once the site is empty (`FR-654`). |
 | `FR-840` | ***Registro patronal* missing at physical start.** A *centro de trabajo* has a *fecha de inicio físico* and no *registro patronal*. This is the **root alert of the window**: SIROC registration and IDSE *movimientos* both depend on it (`FR-226`), so it fires first, and the alerts that depend on it name it as their cause rather than firing as independent failures. |
@@ -1413,6 +1415,30 @@ works from, and the PRD described the capture event without describing the day a
 | `FR-1357` | Recording an *incidencia* notifies the responsible role with the employee, the *centro de trabajo*, the type, and **what they must now do** — routed through the alerting subsystem so it escalates and never merely appears once (`FR-813`). |
 | `FR-1358` | Capturing an *incidencia* never blocks or replaces the *jornada* record for that day. The two coexist: what the worker did, and what happened to them. |
 
+#### 6.13.6 Expected state, observed state, and the gap between them
+
+Source: the *patrón*'s answer to `OQ-010`, 2026-08-20. **This is the third application of one
+pattern.** NEO already holds two independent statements about employment — the operational
+relationship and the IMSS affiliation — and makes their disagreement the product (§7.3). It already
+cross-checks its own lateness computation against the IMSS's *extemporáneo* flag rather than
+preferring either (`FR-638`). A day is the same problem: what was *supposed* to happen and what was
+*observed* are separate facts, and neither is derived from the other.
+
+| ID | Requirement |
+|---|---|
+| `FR-1360` | Every employee-day carries **two independent statements**: the **expected state** — what the company's records say should happen — and the **observed state** — what the capture record says did. Neither is computed from the other, and **neither ever overwrites the other** (`INV-057`). |
+| `FR-1361` | Expected state is the employee's **work pattern**, overridden by any **exception registered against that date**: *vacaciones*, *incapacidad*, *permiso con* or *sin goce*, *día de descanso*, *día de descanso obligatorio*, *suspensión*. |
+| `FR-1362` | The work pattern is per employee, effective-dated, and covers expected working days, expected start and end, and expected break windows. It is the minimal scheduling model — enough to know who is expected today, not a workforce scheduler. |
+| `FR-1363` | Expected state for the current period is **cached on the capture device and evaluated offline**. The sites where this matters most have the least connectivity, and a warning that requires a network is a warning that does not fire. |
+| `FR-1364` | **Expected state never blocks a capture.** A worker recorded as on *vacaciones* or *incapacidad* who presents themselves is captured, always. This is not a weakening of the rule — it is the case where recording matters most, because if the worker genuinely worked, that is the fact, and refusing to record it would be falsifying the record to make a conflict disappear. |
+| `FR-1365` | Where observed and expected conflict, the capture application **warns the supervisor at that moment, naming the expected state**: *this worker is recorded as on vacaciones*. The supervisor proceeds, and both facts are kept. |
+| `FR-1366` | **Conflicts are classified and carry a severity.** Present while on *vacaciones* — a worker being paid for leave and paid for work on the same day. Present while on *incapacidad* — the most serious, since the IMSS pays a *subsidio* against a medical certificate and the worker's presence contradicts it; escalates immediately and independently of the *periodo* (subject to `OQ-001` for the precise consequences). Present while on *permiso sin goce*. Absent while expected. Present with no expected state at all, which resolves through the roster discrepancy path (`FR-1354`). Working a *día de descanso* is **not** a conflict — it is time to be classified correctly (`FR-724`). |
+| `FR-1367` | **A supervisor may propose a reclassification, and RH disposes.** Where a *falta* is really unregistered *vacaciones* the supervisor knows about, they record what they know against the day and RH confirms it. The supervisor does not set it directly by default, because *vacaciones* consume an entitlement and move money; a company may configure direct supervisor classification where it prefers speed. Either way the day is recorded immediately and the proposal is never a precondition for the *jornada* record. |
+| `FR-1368` | **The *incidencias* report never silently resolves a conflict.** A day where expected and observed disagree is reported as the conflict it is, with both statements visible, and never flattened into whichever one the report happens to favour. The accountant is about to pay those days — resolving it inside the report would hide the one thing they need to see (`FR-704`). |
+| `FR-1369` | Every exception records **when it was registered as well as which date it covers**, and the lag between them is visible. An exception entered weeks after the day it covers is not forbidden and is not necessarily wrong — but retroactively registering *vacaciones* over a *falta* is a known practice, and a system that shows only the final state cannot distinguish it from ordinary late paperwork. |
+| `FR-1370` | Conflict rates are reported **per supervisor, per *centro de trabajo* and per *periodo***, on the same basis as record-class concentration (`FR-413`). An individual conflict is an incident; a concentration is a practice. |
+| `FR-1371` | A conflict is also a **fraud signal, not only a compliance one**: a check-in for a worker recorded as absent on leave is exactly what buddy punching looks like from the data. The conflict record carries the capture's record class and factors so the two readings can be told apart (§8.5). |
+
 ---
 
 ## 7. Data model requirements
@@ -1598,6 +1624,7 @@ These must hold at all times, and each is testable.
 | `INV-052` | Wherever a *registro patronal* is named — a *movimiento*, a *registro patronal* assignment, a *centro de trabajo* attachment, an export — it is a reference to a row in its own tenant's registry. Free text, or a reference resolving to another tenant's registry, is not a valid state. The invariant governs *how* a *registro patronal* is cited, not whether one must be cited: an employee or a *centro de trabajo* may legitimately have none yet (`FR-339`, `FR-219`). |
 | `INV-054` | Every open `RELACION_LABORAL` has a *centro de trabajo* assignment covering every day it is open. A *registro patronal* assignment is optional and may begin later. |
 | `INV-055` | A *centro de trabajo* may be attached to at most one *registro patronal* at any instant, though it may be attached to different ones over time. |
+| `INV-057` | For any employee-day, the expected state and the observed state are both retained, independently and permanently. Resolving a conflict adds a disposition; it never replaces either statement. |
 | `INV-056` | A *centro de trabajo* whose type requires SIROC registration can be created, assigned employees and host *jornada* without a registration folio. The absence is recorded as exposure; it is never a precondition. |
 | `INV-053` | Every *registro patronal* belongs to exactly one *patrón*, and a *patrón* may hold many. |
 | `INV-050` | Every biometric template is linked to an active, unrevoked consent. Revocation makes the template unusable and schedules its deletion. |
@@ -2249,10 +2276,17 @@ construction runs *12x12* and rotating patterns where inference is unreliable. B
 scheduling is a substantial module.
 **Recommendation: a minimal (b)** — a per-employee expected-days-and-hours pattern, effective
 dated, sufficient to classify *faltas*, *retardos* and rest days correctly. Not a full workforce
-scheduler. *Updated after decision `B5`:* this is no longer optional. The proactive reminders and
-the missing-check-out alert (`FR-1301`–`FR-1304`, `FR-830`) cannot fire without an expected
-pattern, so the minimal model is now load-bearing and is specified in `FR-1301`. What remains
-open is only how the pattern is captured for rotating and *12x12* crews.
+scheduler.
+→ **RESOLVED 2026-08-20: both (a) and (b), because the gap between them is the product.** Expected
+state — the pattern plus registered exceptions — and observed state are two independent statements
+about a day, and neither is derived from the other. §6.13.6 specifies the model, the conflict
+classes and their handling. The design is the third application of a pattern the product already
+uses twice: the operational relationship against the IMSS affiliation (§7.3), and NEO's own
+lateness computation against the IMSS *extemporáneo* flag (`FR-638`).
+
+**What remains open** is narrower and no longer blocking: how the pattern is captured for rotating
+and *12x12* crews (`OQ-039`), and whether a supervisor may classify directly or only propose, which
+`FR-1367` makes a per-company setting with proposal as the default.
 
 ### Commercial
 
@@ -2423,6 +2457,21 @@ credentials or filing on their behalf. (b) is a small increment on (a) once the 
 confirmed and is a good second step, not a first one.
 → **RESOLVED 2026-08-20: (a).** NEO supplies the users who hold the permission with the information
 they need to complete each SIROC submission themselves. NEO does not file.
+
+**`OQ-039` — How is the work pattern captured for rotating and *12x12* crews?**
+`FR-1362` requires a per-employee effective-dated pattern. A fixed Monday-to-Saturday crew is
+trivial; a *12x12* rotation, a crew that alternates shifts, or an *obra* running two shifts is not.
+(a) Patterns are defined per crew or *centro de trabajo* and inherited by the employees assigned
+there, with per-employee override. (b) Patterns are defined per employee only. (c) Cycle templates
+— *n* days on, *m* days off, anchored to a start date — assignable to an employee or a crew.
+*Trade-off:* (b) is honest and unusable at 200 workers. (a) matches how construction actually
+organises — the crew has the rotation, not the person — but needs care when a worker moves between
+crews mid-cycle. (c) expresses rotation directly and is the only one of the three that describes a
+*12x12* without enumerating dates.
+**Recommendation: (a) with (c)** — cycle templates held at the crew or *centro de trabajo* level and
+inherited, with per-employee override for the exceptions. Confirm against a real roster from the
+first construction client before building it; the shapes that exist in practice are the whole
+question here.
 
 **`OQ-038` — CFDI issuance timing, tax composition, and cancellation.**
 Three connected questions that only matter once invoicing is real, and all three change what the
