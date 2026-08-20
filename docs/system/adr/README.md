@@ -18,8 +18,21 @@ where it is a recommendation awaiting sign-off.
 | [0007](0007-compute-and-data-platform.md) | Compute and data platform for v1 | Proposed | Serverless containers over Kubernetes for now, with named triggers to move |
 | [0008](0008-employment-imss-lifecycles-and-metering.md) | Two employment lifecycles, and the metering unit | Accepted | Operational vs IMSS lifecycles, exposure as a product, peak-concurrent billing |
 | [0009](0009-idse-pdf-extraction-pipeline.md) | IDSE PDF extraction pipeline | Proposed | Deterministic templates, check digits, cross-footing; AI as a bounded fallback |
+| [0010](0010-identity-and-authentication.md) | Identity and authentication | Proposed | First-party auth on our own platform, identity in the control plane, MFA where it matters, device holds a signed capability not a session |
+| [0011](0011-authorization-and-tenant-context.md) | Authorization and tenant context | Proposed | Atomic permissions and tenant-composed roles, database roles fixed by code, forced RLS against the owner, scope stored at write time, authorization history is evidence |
+| [0012](0012-device-identity-and-enrolment.md) | Device identity and enrolment | Proposed | Online enrolment ceremony, device and operator are separate principals, no silent scope inheritance, revocation is time-split |
+| [0013](0013-secrets-and-key-management.md) | Secrets and key management | Proposed | Four custodial domains, anchoring keys unreachable from tenant-write paths and tested, rotation retains, per-tenant keys for templates and client credentials |
 
 ## Open PRD questions each ADR closes
 
 `OQ-024` → ADR-0007 · `OQ-033` → ADR-0006 · `OQ-004` → ADR-0002 (partially; *PSC* quotes still
-outstanding) · `OQ-006` → ADR-0009 (pipeline settled; templates await a sample document)
+outstanding) · `OQ-006` → ADR-0009 (pipeline settled; templates await a sample document) ·
+`OQ-012` → ADR-0010 (federation mechanism fixed; whether a client needs it is still open) ·
+`OQ-025` → ADR-0010 (identity no longer has a residency dimension; the platform question stands)
+
+## Consolidated threat model
+
+[`../threat-model.md`](../threat-model.md) draws ADR-0001 through ADR-0013 together into one view of
+adversaries, controls and **residual risk**, with the paying customer modelled as an adversary per
+PRD §2.3. It is a living document; the independent security review it feeds (`NFR-106`) is a dated
+snapshot and belongs in [`../../assessments/`](../../assessments/).

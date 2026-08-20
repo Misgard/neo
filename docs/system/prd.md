@@ -271,8 +271,8 @@ is in scope and is normative:
 
 **Scale envelope for design purposes.** 500 employees across approximately 10 clients within
 three months of launch (`A-001`), yielding roughly 22,000 *jornada* events per month. The
-18-month design target is 5,000 employees across ~100 clients (`A-002`), roughly 220,000 events
-per month. Revenue at the launch envelope constrains infrastructure cost hard; see `NFR-901`
+18-month design target is 5,000 employees across ~50 clients (`A-002`, `NFR-502`), roughly 440,000
+events per month (§9.5). Revenue at the launch envelope constrains infrastructure cost hard; see `NFR-901`
 and §9.7.
 
 ---
@@ -353,11 +353,27 @@ Not an employee of any client. Serves several companies and needs a **distinct c
 surface** listing every client company they hold a grant for. This is the only role that
 legitimately crosses tenant boundaries in the ordinary course of business.
 
-**Least privilege applies.** An external accountant needs attendance, *incidencias*, and the
-identity fields required for payroll. They do not need passports, visas, medical documents or
-the disciplinary history. The grant is per company, issued by that company's Admin, revocable
-at any time, optionally time-boxed, and every cross-tenant access is logged and visible to the
-granting company (`FR-124`).
+**It is a principal type, not a permission set.** What makes someone a *contador externo* is the
+cross-tenant surface and per-request grant resolution (`FR-121`, `FR-125`, `FR-126`) — not what
+they may do once inside a company. That is decided by the granting Admin, who names one of their
+own roles when issuing the grant (`FR-1459`).
+
+**Least privilege is the default, not the ceiling.** The default grant is a read-only payroll
+role: attendance, *incidencias*, and the identity fields payroll requires, with no *expediente*.
+Most external accountants need nothing more.
+
+**But some clients outsource the whole function.** A small business commonly contracts a *despacho*
+to **operate** its *Recursos Humanos* and payroll — to load employees, upload IDSE artifacts and
+keep contracts — without outsourcing the employment relationship, which would make the *despacho*
+a different *patrón* and therefore a tenant in its own right (`OQ-027`). Those clients may grant a
+wider role. Three limits are not theirs to relax: a cross-tenant principal can **never** hold user
+or role management (`FR-1444`), sensitive *expediente* categories need their own permission
+(`FR-1448`), and granting *expediente* access requires the Admin to affirm on the record that the
+agreement their legal position requires is in place (`FR-1467`, `OQ-045`).
+
+The grant is per company, issued by that company's Admin, revocable at any time, optionally
+time-boxed, and every cross-tenant access is logged and visible to the granting company
+(`FR-124`).
 
 #### 4.2.6 Staff NEO (internal)
 
@@ -374,16 +390,34 @@ compliance gaps across clients. Knowing which specific client is filing late is 
 does not want and a betrayal of the client relationship. Aggregate platform health is fine;
 per-worker exposure is not.
 
-### 4.3 Permission matrix
+### 4.3 Default role composition
+
+Permissions are atomic and composable (`FR-1440`). This table is therefore **not a fixed matrix**:
+it defines the **system roles NEO ships**, so a tenant works on day one without configuring a
+permission tree. A system role is a read-only template; an Admin who needs something different
+clones one and edits the clone (`FR-1441`, `FR-1442`).
+
+*Contador externo* has no column, because it is a principal type rather than a role (§4.2.5). A
+delegated principal holds whichever role the granting Admin named; the shipped default for that
+purpose is **Nómina externa**, the read-only payroll role in the column of that name.
+
+**Three things no composition can reach**, and they are invariants rather than defaults:
+
+1. No cell can become a write against an evidentiary record. The permission does not exist
+   (`FR-1445`, `INV-062`).
+2. **Users and role grants** can never be held by a principal with grants in more than one
+   company, whatever role is composed for them (`FR-1444`, `INV-067`).
+3. Staff NEO is not tenant-composable at all: control plane by default, tenant data only under
+   break-glass (`FR-1201`, `FR-1461`).
 
 `R` read · `W` write · `A` approve · `X` export · `—` no access · `L` logged with elevated
 scrutiny
 
-| Object | Admin | RH | Supervisor | Cont. interno | Cont. externo | Staff NEO |
+| Object | Admin | RH | Supervisor | Cont. interno | Nómina externa | Staff NEO |
 |---|---|---|---|---|---|---|
 | Company profile, *registros patronales* | RW | R | R (own scope) | R | R | R (control plane) |
 | Org chart, *ubicaciones*, *proyectos* | RW | RW | R (own subtree) | R | R | — |
-| Users and role grants | RW | R | — | — | — | L |
+| Users and role grants | RW | RW | — | — | **never** (`FR-1444`) | L |
 | Employee identity + assignment | RW | RW | R (subtree) + W on field enrolment | R (payroll fields) | R (payroll fields) | L |
 | *Expediente* documents | R | RW | — | — | — | L |
 | *Jornada* records | R, X | R, X | W (capture), R (subtree) | R, X | R, X | L |
@@ -619,16 +653,16 @@ Source: brief §2; §4 of this document.
 | `FR-103` | `ORG_SUBTREE` resolves dynamically against the current organisational chart. Moving a node in the chart changes the effective scope of every supervisor above it without re-issuing any grant. |
 | `FR-104` | Supervision nests to arbitrary depth. A supervisor's effective scope is the union of their own node and all descendants. |
 | `FR-105` | The organisational chart cannot contain a cycle. An edit that would create one is rejected with an explanation. |
-| `FR-106` | Every permission decision is evaluated server-side. The client application never decides what a user may see. |
-| `FR-107` | Creating a user consuming an admin/supervisor seat is blocked when the company's seat entitlement is exhausted, with a message naming the entitlement and offering an upgrade path. This block applies **only** to seats, never to employees (`FR-935`). |
+| `FR-106` | Every permission decision is made server-side. A client never decides what a user may see. The capture application is not an exception to this: it holds a **server-signed capability** it can neither widen nor forge (`FR-1420`), and it presents a decision the server already made. At sync the platform re-evaluates every record against the authoritative grant state as it stood at that record's own time (`FR-1426`), and a capture outside the cached scope is recorded and flagged, never refused (`FR-1425`). |
+| `FR-107` | Creating a user in a **console-only** role — Admin, *Recursos Humanos*, *contador interno*, *contador externo* — is blocked when the company's seat entitlement is exhausted, with a message naming the entitlement and offering an upgrade path. Creating a user who holds a **capture-operator** role is never blocked: it succeeds, meters as overage and bills on the next period (`FR-935`), because a supervisor seat is the only seat whose absence stops a *jornada* from being recorded, and no commercial limit may do that (§2.1). The client is warned as the allowance approaches exhaustion, not at the moment of need. |
 | `FR-120` | A company Admin may grant a *contador externo* access to that company. The grant is per company, revocable at any time, and optionally time-boxed with an automatic expiry. |
-| `FR-121` | An external accountant's access is limited to *jornada*, *lista de asistencia*, *incidencias*, and the identity fields required for payroll. Documents in the *expediente* are not accessible to them. |
+| `FR-121` | *Contador externo* is a **principal type, not a permission set**: what distinguishes it is the cross-tenant portfolio surface and per-request grant resolution, not what it may do inside a company. Its privileges within a granted company are those of the role the granting Admin chose (`FR-1459`). The default is a read-only payroll role — *jornada*, *lista de asistencia*, *incidencias*, and the identity fields payroll requires, with no access to the *expediente*. A company whose *Recursos Humanos* function is operated by an external *despacho* may grant a wider role, subject to `FR-1444`, `FR-1448` and `FR-1467`. |
 | `FR-122` | The external accountant surface lists all companies that have granted them access and allows switching between them. Data from two companies is never presented in a single combined view unless the accountant is the billed party for both and the view contains only their own billing data. |
-| `FR-123` | Revoking a grant terminates the accountant's active sessions for that company immediately. |
+| `FR-123` | Revoking a grant takes effect on the accountant's **next request** for that company, which is denied (`FR-125`), and aborts any long-running job already running under it at its next checkpoint (`FR-1460`). There is no per-company session to terminate, because a grant is never carried in a session token. |
 | `FR-124` | Every cross-tenant access by an external accountant is written to the target company's audit log with the accountant's identity, the objects touched, and the time, and is visible to that company's Admin. |
 | `FR-125` | A delegated cross-tenant user's grants are resolved from the control plane **on every request** and **fail closed**. A grant is never carried in a session token or cached beyond the request, so revocation (`FR-123`) and time-box expiry (`FR-120`) take effect on the next request. If grant resolution is unavailable, access is denied rather than defaulted. |
 | `FR-126` | The portfolio surface issues **one single-tenant request per granted company** and composes the results in the application. No request ever carries a multi-company data scope. An accountant holding both a pooled and a dedicated-database client is served identically, because the composition happens above the data layer. |
-| `FR-127` | An external accountant's effective privileges within a granted company are enforced at the data layer under a narrower persona role, not by application-side filtering. Objects outside the grant — notably *expediente* documents (`FR-121`) — are unreachable rather than merely hidden. |
+| `FR-127` | An external accountant's effective privileges within a granted company are enforced at the data layer under the database role each operation declares (`FR-1455`), not by application-side filtering. Object classes outside that role — notably *expediente* documents where the granted role does not reach them — are unreachable rather than merely hidden. Reachability is enforced at object-class granularity; which user may invoke which operation is enforced above it and asserted by `NFR-1003` and `NFR-1005` (ADR-0011). |
 
 ### 6.3 Organisational structure and *registros patronales*
 
@@ -717,7 +751,7 @@ operational core of *prueba plena* and is a first-class deliverable, not a repor
 |---|---|
 | `FR-510` | Every *jornada* record is signed on the capture device at the moment of capture, using a private key held in hardware-backed storage and provisioned when the device was enrolled. |
 | `FR-511` | Each capture device maintains a **local hash chain**: every record includes a monotonically increasing sequence number and the hash of the preceding record from that device. |
-| `FR-512` | On the platform, every tenant maintains an **append-only hash chain** over all evidentiary objects: *jornada* records, corrections, *listas de asistencia*, ingested IDSE artifacts, and *expediente* documents. |
+| `FR-512` | On the platform, every tenant maintains an **append-only hash chain** over all evidentiary objects: *jornada* records, corrections, *listas de asistencia*, ingested IDSE artifacts, *expediente* documents, *desviaciones*, overtime authorisations, **role definitions, grants and grant revocations, device enrolment and revocation events, audit entries, and compliance documents** (`FR-1464`, `FR-1465`, `FR-1468`). Who was authorised to capture, for whom, on which device and on what date is part of what a *peritaje* examines. |
 | `FR-513` | The tenant chain is sealed on a fixed cadence — at minimum daily — producing a chain root. |
 | `FR-514` | Chain roots from all tenants sealed in the same period are combined into a **Merkle tree**, and only the tree root is submitted to an external trusted timestamping authority. Each tenant object's presence under that root is provable by a Merkle inclusion path. |
 | `FR-515` | The external anchoring cost is therefore a function of time, not of tenant count or event volume. At the launch envelope this is on the order of tens of anchors per month for the entire platform, and it does not grow as the business grows. |
@@ -928,7 +962,7 @@ permission flag.** Price points are out of scope; the mechanics below are not.
 | `FR-932` | The billable count opens on the operational hire date and closes on the operational *baja* (`FR-338`). |
 | `FR-933` | An employee concurrently registered under two or more *registros patronales* of the same company counts **once**. |
 | `FR-934` | A **dormancy report** surfaces monthly the employees with no *jornada* records for a configured interval and no *baja*, with a bulk close action. This exists to keep rosters honest, not to waive revenue. |
-| `FR-935` | **Plan capacity never blocks the creation of an employee**, online or offline. Capacity is measured and billed as overage, and surfaced to the Admin before invoicing. Seats, by contrast, are hard-enforced (`FR-107`). |
+| `FR-935` | **Plan capacity never blocks the creation of an employee**, online or offline, and never blocks the creation of a capture operator. Both are measured and billed as overage and surfaced to the Admin before invoicing. Only console-only seats are hard-enforced (`FR-107`). |
 | `FR-936` | Offline field enrolment that exceeds plan capacity is reconciled at sync and reported to the Admin with the date each employee was created. |
 | `FR-937` | The metering figure is derivable from the employment relationship timeline alone and is reproducible for any past month. |
 | `FR-938` | Metering functions identically for dedicated-database tenants, via the non-personal metrics replicated under `FR-008`. |
@@ -1015,7 +1049,7 @@ Source: brief §2; §4.2.6.
 
 | ID | Requirement |
 |---|---|
-| `FR-1201` | NEO staff access to tenant personal data requires a **break-glass elevation**: a stated reason from a controlled list, a bounded time window, and approval by a second NEO staff member. |
+| `FR-1201` | NEO staff access to tenant personal data requires a **break-glass elevation**: a stated reason from a controlled list, a bounded time window, and approval by a second NEO staff member **or by the Admin of the company it targets** (`FR-1461`). Client approval is the stronger artifact — it is the *responsable* authorising access to its own workers' data — and it removes the failure mode where a small NEO team cannot muster a second approver. |
 | `FR-1202` | Every break-glass session and every object touched within it is written to the **tenant's own audit log**. |
 | `FR-1203` | The company Admin is notified when a break-glass session opens against their tenant, and can see what was accessed. |
 | `FR-1204` | Break-glass elevations expire automatically. There is no standing elevated access. |
@@ -1066,6 +1100,169 @@ alert early, never block, document every deviation.**
 | `FR-1338` | A *desviación* registered without its promised documentation escalates (`FR-832`) until the documentation arrives or it is closed with a reason. |
 | `FR-1339` | Deviation frequency is reported per supervisor, per site and per *periodo*. A rising rate is an operational signal; a concentration is a review item alongside `FR-413`. |
 | `FR-1340` | *Desviaciones* are append-only under `FR-501`. |
+
+### 6.14 Identity, authentication, authorization and key management
+
+Source: [`prompt_identity_and_security.md`](../prompts/prompt_identity_and_security.md) and the
+decisions taken in that session; §2.3, §4, §6.1–§6.2, §6.12, §8.9, §9.1–§9.2, §10, §11.7. Decided in
+ADR-0010 through ADR-0013, and consolidated in [`threat-model.md`](threat-model.md).
+
+Read as a unit, like §8. Two properties make this block unlike ordinary SaaS identity work: a
+capture device must authenticate its operator for days with no network, and **no failure in any
+requirement here may prevent a *jornada* from being recorded** (§2.1).
+
+#### 6.14.1 Identity and the credential model
+
+| ID | Requirement |
+|---|---|
+| `FR-1400` | All human user identity — accounts, credentials, second-factor enrolments, roles and grants — lives in the **control plane**, never in a tenant database. One person holds one account regardless of how many companies they reach. |
+| `FR-1401` | Passwords are persisted only as verifiers produced by a memory-hard key derivation function with a per-user salt. The plaintext is never persisted, never logged, and never leaves the request that carried it. |
+| `FR-1402` | Password policy follows current recognised guidance: a stated minimum length, no composition rules, no scheduled forced rotation, and screening against a known-breached-credential list when a password is set. If screening is unavailable the password is accepted and queued for re-screening; screening never blocks account creation. |
+| `FR-1403` | The supported second factors are TOTP (RFC 6238) and WebAuthn. Both operate without NEO holding a shared secret that could be replayed against another service. |
+| `FR-1404` | A second factor is **mandatory** for: Admin, every NEO staff member, every principal holding grants in more than one company, and every principal holding a permission over a sensitive *expediente* category (`FR-1448`). It is available to every other user. |
+| `FR-1405` | Account recovery never bypasses the second factor. Recovery requires either a surviving second factor or a single-use recovery code issued at enrolment. |
+| `FR-1406` | Where every factor is lost, recovery is a manual, identity-verified, audited act performed by an Admin of that user's company. Where the last remaining Admin of a company is locked out, recovery is performed by NEO staff under break-glass (`FR-1461`) and is notified to the company. |
+| `FR-1407` | Users are onboarded by invitation. An invitation is single-use, time-boxed, bound to the grant it will create, revocable before acceptance, and confers nothing until accepted. |
+| `FR-1408` | Sessions are server-side and revocable. Session validity is resolved from the control plane on every request; no session credential is self-contained. |
+| `FR-1409` | A session carries both an idle timeout and an absolute lifetime (`OQ-040`). Reaching either ends the session on the administrative surfaces. It never ends capture (`FR-1422`). |
+| `FR-1410` | A user can list and terminate their own active sessions. An Admin can terminate any session held against their company. |
+| `FR-1411` | Authentication attempts are rate-limited per account and per source with escalating backoff. Lockout is always time-bounded and self-clearing — a permanent lockout is a denial of service against the account holder. |
+| `FR-1412` | Every authentication event — success, failure, second-factor challenge, recovery, session termination, invitation acceptance — is recorded with actor, source address, device, time and outcome. |
+| `FR-1413` | NEO staff authenticate by OIDC against NEO's corporate identity provider. NEO holds no staff password. A phishing-resistant second factor is required. |
+| `FR-1414` | A company may bind one or more email domains to an external OIDC issuer, so users in those domains authenticate against the client's own identity provider (`OQ-012`). |
+| `FR-1415` | **No grant is ever derived from an external identity claim.** Federation establishes who the user is; NEO's own grant records establish what they may do. A claim in an external token never widens scope. |
+| `FR-1416` | Deactivating a user terminates every session they hold on the next request and stops their grants resolving. The user record and their audit history are retained (`FR-1103`). |
+| `FR-1417` | Credential material, second-factor secrets and recovery-code verifiers are excluded from every export, hand-off and support surface, including the verification bundle (`FR-530`). |
+| `FR-1418` | A user's own personal data — name, email, telephone, authentication history — is subject to ARCO on the same terms as a worker's (`FR-1105`). |
+
+#### 6.14.2 Offline operator authentication on the capture device
+
+`FR-465` and `NFR-940` require the capture application to work for at least seven days with no
+connectivity. `FR-106` and `INV-002` require every permission decision to be evaluated
+server-side at the moment of the request. Both cannot hold literally. These requirements
+reconcile them: the device never decides what it may do — it presents a decision the server
+already made and signed, and the server re-evaluates at sync.
+
+| ID | Requirement |
+|---|---|
+| `FR-1420` | A capture device holds a **server-signed operator capability**: the operator's identity, the company, the resolved scope, the permission set, the issue time, a nominal expiry and a hard expiry. The device verifies the signature offline and can neither widen nor forge it. |
+| `FR-1421` | The capability is reissued at every sync. Its nominal lifetime defaults to 24 hours and is configurable per company; its hard lifetime is the device retention window (`NFR-940`). |
+| `FR-1422` | **Capability expiry never stops capture.** Past the nominal expiry the device keeps recording and every record carries a disclosed stale-authorization flag. Past the hard expiry it keeps recording at the weakest record class with a mandatory *desviación* (`FR-1330`). |
+| `FR-1423` | The operator unlocks the capture application with a device-bound factor that releases the capability and the use of the device signing key. Unlock never requires connectivity (`OQ-041`). |
+| `FR-1424` | Unlock attempts are rate-limited on the device with escalating backoff. Exhausting the limit locks the application; it never deletes an unsynced record. |
+| `FR-1425` | A capture for a worker outside the device's cached scope is **recorded, never refused**, and flagged for scope review at sync. |
+| `FR-1426` | At sync the platform re-evaluates every record against the authoritative grant state **as it stood at that record's own time**. A mismatch flags the record; it never discards it. |
+| `FR-1427` | Revoking an operator's access takes effect on the device at its next contact, immediately and with no user action. |
+| `FR-1428` | A device whose operator was revoked while it was offline continues to record. Records whose capture time falls after the revocation instant are accepted, sealed, permanently flagged, and enter the adjudication flow of §6.14.4. They are never silently accepted and never discarded. |
+| `FR-1429` | The residual exposure window — revocation to next device contact — is reported to the Admin at the moment of revocation, together with that device's last contact time, so the client knows its size rather than assuming it is zero. |
+| `FR-1430` | Changing the operator on a device is an explicit act that ends the previous capability, clears the previous operator's scope and cached data from the device, and requires the incoming operator to authenticate. **A device never silently inherits the previous operator's scope.** |
+
+#### 6.14.3 The worker-held secret
+
+The baseline non-biometric path (`FR-410`) must be verifiable on a device with no connectivity,
+which puts a verifier for every worker in scope on a field device. Because §8.3 requires that
+path to carry evidentiary weight equal to the biometric one, its offline compromise weakens the
+path the LFPDPPP requires to exist.
+
+| ID | Requirement |
+|---|---|
+| `FR-1431` | The worker-held secret is persisted only as a verifier produced by a memory-hard key derivation function with a per-worker salt, on the device and on the platform alike. |
+| `FR-1432` | On-device verifiers are encrypted under a hardware-backed key and exist only for workers currently in that device's scope, on the terms `FR-436` sets for templates. |
+| `FR-1433` | Secret verification is rate-limited per worker per device with escalating backoff. Exhausting the limit falls through to a lower record class with a mandatory *desviación* — never to a refusal (`FR-428`). |
+| `FR-1434` | The minimum secret strength is stated and enforced, chosen to remain usable under `FR-014`. |
+| `FR-1435` | A worker may change their secret through a supervisor-mediated flow that works offline. |
+
+#### 6.14.4 Adjudicating capture after a revocation
+
+Revocation cannot reach a device with no network, so records captured between a revocation and the
+device's next contact exist and must be dealt with. They are never deleted — deleting them would
+destroy the record of hours a worker may genuinely have worked, which is the failure this product
+exists to prevent. They are adjudicated by a human with authority over the revoked operator.
+
+| ID | Requirement |
+|---|---|
+| `FR-1436` | Records captured after a revocation instant (`FR-1428`, `FR-1483`) enter an **adjudication queue** at the device's next sync, directed at a principal holding authority above the revoked operator in the organisational chart (`FR-104`), or at the Admin where no such principal exists. A revoked operator can never adjudicate their own records. |
+| `FR-1437` | Adjudication has exactly three outcomes, each recorded with the adjudicator, a reason in their own words, and the time: **revocation upheld** — the records stand and are permanently classified as captured without authorisation; **authorisation extended** — the operator's grant is extended or reinstated to cover the period, and the records stand as retroactively authorised; **revocation in error** — the revocation itself was a mistake. |
+| `FR-1438` | Adjudication **appends and never edits**. The original flag on each record is permanent and remains visible in every export beside the adjudication that resolved it, on exactly the terms `FR-1316` sets for retroactive overtime authorisation. The adjudication is sealed into the tenant chain (`FR-1464`). |
+| `FR-1439` | A *lista de asistencia* covering a period that is unadjudicated, or adjudicated as **revocation upheld**, discloses that condition on the document itself. A revocation adjudicated as an error registers a ***desviación*** (`FR-1330`) documenting the process failure and the elapsed delay. An adjudication left open escalates on the terms of `FR-1338`, because an unadjudicated queue is indistinguishable from an unnoticed one. |
+
+#### 6.14.5 Authorization, roles and the permission catalogue
+
+| ID | Requirement |
+|---|---|
+| `FR-1440` | Permissions are **atomic** and enumerated in a versioned catalogue. Each entry names the operations it authorises and the single database role those operations execute under. |
+| `FR-1441` | A **role** is a named set of atomic permissions. The personas of §4.2 ship as pre-composed **system roles** built from the same catalogue, with no special-casing. A system role is a read-only template: it cannot be edited in place, so NEO can evolve the defaults without a tenant's copy silently diverging from them. |
+| `FR-1442` | A company Admin may define **custom roles**, either from an empty set or by cloning a system role, so that a company whose *Recursos Humanos* function is operated by an external *despacho* can express that without NEO shipping a role per arrangement. A cloned role is thereafter independent of the template it came from, and the fact that it diverged is visible. |
+| `FR-1443` | No principal may grant a permission it does not itself hold. |
+| `FR-1444` | **User management and role and grant management are non-delegable outside the tenant.** They may be held only by a principal whose grants are confined to a single company. A principal holding grants in more than one company can never hold them, under any role composition. |
+| `FR-1445` | **The catalogue contains no permission that creates, alters or deletes an evidentiary record.** The absence is structural rather than a policy: there is no such operation to authorise (`FR-501`). |
+| `FR-1446` | A permission added to the catalogue defaults to **deny** for every existing role, system and custom alike. |
+| `FR-1447` | Separation of duty is enforced at the moment of the act, never inferred from role composition. A role containing both the request and the approval of a correction is valid; the same person performing both is refused (`FR-503`, `FR-504`). |
+| `FR-1448` | Every *expediente* document category (`FR-304`) carries a **sensitivity classification**. Reaching a category classified sensitive requires its own atomic permission, distinct from any general *expediente* permission. |
+| `FR-1449` | A scope of type `REGISTRO_PATRONAL`, `UBICACION` or `PROYECTO` names a **set** of those objects within one company. Set-valued scope is intra-tenant only; it never widens the tenant context, which remains exactly one company (`INV-001`). |
+| `FR-1450` | Every evidentiary and operational row records the *registro patronal*, the *ubicación*/*proyecto* and the organisational node **resolved at the instant it was written**. Scope predicates test those stored values; no authorization decision joins to an assignment timeline at query time. |
+| `FR-1451` | Because an employee may be registered under more than one *registro patronal* concurrently (`FR-207`), a row's stored *registro patronal* is the one in force for that employee at that instant, and a grant over one *registro patronal* reaches exactly the rows written under it — no more and no fewer. |
+| `FR-1452` | `ORG_SUBTREE` resolves from a **materialised transitive closure** of the organisational chart, maintained in the same transaction as any change to the chart. No authorization predicate performs a recursive traversal at query time (`FR-103`, `NFR-508`). |
+| `FR-1453` | An edit to the chart that would create a cycle is rejected by the closure maintenance itself rather than by a separate check (`FR-105`). |
+| `FR-1454` | Tenant context is established with `SET LOCAL` inside the transaction that uses it. A transaction that sets no context reads zero rows. |
+| `FR-1455` | Each operation executes under the database role its catalogue entry declares. That role is fixed by the code path and is never selected from request data. |
+| `FR-1456` | Every tenant-scoped table has row-level security **enabled and forced**, so that the table's owner is subject to its own policies. |
+| `FR-1457` | The role that owns the schema and applies migrations is disjoint from every role a request path can assume, and holds no login credential reachable from application configuration. |
+| `FR-1458` | Every evidentiary table carries a trigger that raises unconditionally on `UPDATE` and on `DELETE`, and a database event trigger prevents that trigger or the table's policies from being dropped or disabled. |
+| `FR-1459` | A delegated cross-tenant grant (`FR-120`) names a role chosen by the granting Admin from that company's own roles, and remains subject to `FR-1444`. |
+| `FR-1460` | A long-running asynchronous job (`NFR-505`) re-resolves the grant that authorised it at every checkpoint and aborts when that grant has been revoked, has expired, or has been narrowed. |
+| `FR-1461` | Break-glass elevation (`FR-1201`) is approved by a second NEO staff member **or** by the Admin of the company it targets. |
+| `FR-1462` | A break-glass session executes under a database role holding no `INSERT`, `UPDATE` or `DELETE` on any evidentiary table, so `FR-1205` is enforced by the database rather than by procedure. |
+| `FR-1463` | Every break-glass session is written to the tenant's audit log and mirrored to the control plane. NEO staff read their own action history from that mirror; no NEO staff surface issues a query spanning tenants (`INV-001`). |
+| `FR-1464` | Role definitions, grants, and grant revocations are **evidentiary objects**: append-only, hashed, and sealed into the tenant chain on the terms of `FR-512`. Who was authorised to capture, for whom, on what date is part of what a *peritaje* examines. |
+| `FR-1465` | Device enrolment and revocation events and audit entries (`FR-1101`) are sealed into the tenant chain on the same terms. |
+| `FR-1466` | An audit entry records the sensitivity classification of the object it describes, so an ARCO *acceso* request can be answered with who reached which category of data (`FR-1105`). |
+
+#### 6.14.6 Compliance artifacts for delegated access
+
+| ID | Requirement |
+|---|---|
+| `FR-1467` | Issuing a grant that reaches the *expediente* requires the granting Admin to affirm, against versioned text recorded with the grant, that the client holds the agreement its own legal position requires with that third party (`OQ-045`). |
+| `FR-1468` | A company holds a **compliance file**: the agreements it has with third parties reached through NEO, the *aviso de privacidad* versions it has published (`FR-1107`), and the consent text versions in force. Each document is hashed on receipt (`FR-307`) and sealed into the tenant chain. |
+| `FR-1469` | Because a compliance document's hash is anchored, the client can prove the agreement existed **before** the first access made under the grant that required it. |
+| `FR-1470` | Where a grant reaching the *expediente* is in force and the *aviso de privacidad* version accepted by the affected workers does not disclose third-party administration, the discrepancy is raised to the Admin. NEO reports the condition; it does not decide the client's legal position. |
+
+#### 6.14.7 Device identity and enrolment
+
+| ID | Requirement |
+|---|---|
+| `FR-1471` | Device enrolment is performed by a principal holding the device-enrolment permission, which is confined to a single company under `FR-1444`. |
+| `FR-1472` | Enrolment generates a non-exportable key pair in the device's hardware-backed key store, registers the public key against the company, and records the enrolling actor, the time, the device's declared scope and its attestation result at enrolment. |
+| `FR-1473` | The private key never leaves hardware and is never presented to the application. The application requests signatures; it does not hold the key. |
+| `FR-1474` | Enrolment is completed **online**. A device is never enrolled offline, because the platform must witness the attestation and bind the public key before the device produces evidence. |
+| `FR-1475` | A device's scope is a set of *ubicaciones*, *proyectos* or *registros patronales* within one company, and it bounds which capabilities may be issued to it. |
+| `FR-1476` | Device identity and operator identity are separate principals. Every record carries both, or carries the device and an explicit absence of operator (`FR-1477`). |
+| `FR-1477` | A kiosk (§8.1) is enrolled with no operator identity. Its records name the device as the capturing principal and no operator, and the *lista de asistencia* discloses this. |
+| `FR-1478` | Taking a kiosk out of kiosk mode requires authentication by a principal holding that permission, and is audited. |
+| `FR-1479` | A third-party terminal (`FR-404`) is enrolled as a device with its own key, authenticates to the ingest API with a credential distinct from any user credential, and is scoped to one company and a set of *ubicaciones*. |
+| `FR-1480` | Attestation is evaluated at sync (`FR-482`). An attestation failure flags every record in the batch and raises a review item. It never discards a record and never blocks a later capture. |
+| `FR-1481` | Whether an attestation result may also determine a record's class is `OQ-048`. Until that is settled, attestation contributes a flag and the class remains fixed at capture (`FR-411`). |
+| `FR-1482` | A device is revoked by a principal holding the device-revocation permission. Revocation invalidates its key for records captured after the revocation instant and invalidates nothing it produced before (`FR-483`). |
+| `FR-1483` | Records arriving from a revoked device whose capture time precedes the revocation instant are accepted and sealed normally. Records with a later capture time are accepted, sealed, permanently flagged, and adjudicated. |
+| `FR-1484` | Revocation instructs the device, at its next contact, to destroy its cached templates, secret verifiers, capability and key material. |
+| `FR-1485` | A device purges its cached templates, secret verifiers and roster after a configurable period with no platform contact, defaulting to **30 days** — substantially longer than the retention window of `NFR-940`, so a legitimately dark site is unaffected. **Unsynced *jornada* records are never destroyed by any timer** (`FR-470`). A device past its purge keeps capturing at the weakest record class with a mandatory *desviación*, because it can no longer identify a worker; it never refuses. Roster and templates re-sync on reconnection (`FR-942`). |
+| `FR-1486` | Device fleet state — enrolment, scope, last contact, attestation history, revocation — is visible to the Admin and forms part of the evidence about any record that device produced. |
+| `FR-1487` | The device public keys and enrolment records needed to verify a device's signatures are included in the verification bundle (`FR-530`). |
+
+#### 6.14.8 Secrets and key management
+
+| ID | Requirement |
+|---|---|
+| `FR-1488` | Key material is held in a managed key management service. Four custodial domains are kept separate and no principal holds all four: **anchoring keys**, **tenant data keys**, **application secrets**, and **device public keys**. |
+| `FR-1489` | The **anchoring keys** — those that sign chain roots and submit them for external timestamping — are reachable only from the sealing and anchoring jobs, which run under a deployment identity holding no grant on any tenant table (`NFR-105`). |
+| `FR-1490` | No code path that writes tenant data can reach an anchoring key, and the separation is asserted by test rather than by review. |
+| `FR-1491` | Anchoring key rotation is a planned, audited act. A rotated key is retained for verification of everything it signed, because a verification bundle must remain checkable for the life of the record (`FR-533`). |
+| `FR-1492` | Every chain root records the identifier and version of the key that signed it, so a *perito* can determine which key to check. |
+| `FR-1493` | Client-supplied database credentials (`FR-005`) are encrypted under a per-tenant key, never written to logs or error messages, rotatable without downtime, and readable only by the connection resolver (`FR-002`). |
+| `FR-1494` | Biometric templates are encrypted under a per-tenant key held by NEO. In a dedicated-database tenant this means the client's own database holds ciphertext the client cannot read, which preserves `FR-439` in the tier where the client owns the storage. |
+| `FR-1495` | Application secrets are injected at runtime from the secret manager, never baked into an image and never held in source control. |
+| `FR-1496` | Access to a secret or a key is logged, attributable and alertable. |
+| `FR-1497` | No secret, key, credential verifier or biometric template appears in any backup, export or support surface reachable by NEO staff (`NFR-103`). |
 
 ---
 
@@ -1204,7 +1401,7 @@ These must hold at all times, and each is testable.
 | ID | Invariant |
 |---|---|
 | `INV-001` | Every tenant-scoped row belongs to exactly one company, and **no query against tenant data ever spans more than one company** — including for a delegated cross-tenant user, whose portfolio is composed from N single-tenant queries above the data layer (`FR-126`). The portfolio list and the NEO control plane are control-plane data, not tenant data, and are therefore not exceptions to this invariant. |
-| `INV-002` | A user's effective permissions are exactly the union of their active grants, evaluated server-side, at the moment of the request. |
+| `INV-002` | A user's effective permissions are exactly the union of their active grants, evaluated server-side. For an online request this is evaluated at the moment of the request. For an offline capture it is evaluated when the capability was issued and **re-evaluated at sync against the state that held at the record's own time** (`FR-1420`, `FR-1426`); no capability ever grants more than the grants it was derived from. |
 | `INV-003` | A dedicated-database tenant's integrity anchors exist in NEO's infrastructure. A tenant whose anchors exist only in client-controlled storage is not a valid configuration. |
 | `INV-010` | Every *jornada* record has exactly one capture device, one capture channel, one record class, and at least one recorded authentication factor or an explicit "none" with a reason. |
 | `INV-011` | Every *jornada* record has an anchored time interval `[t_lower, t_upper]` and a device-claimed time. The claimed time either falls inside the interval or the record carries an integrity flag. |
@@ -1229,6 +1426,16 @@ These must hold at all times, and each is testable.
 | `INV-041` | An employee contributes at most one to the billable count on any given day, regardless of how many concurrent *registros patronales*, *proyectos* or open `RELACION_LABORAL` records they hold within the same tenant. |
 | `INV-050` | Every biometric template is linked to an active, unrevoked consent. Revocation makes the template unusable and schedules its deletion. |
 | `INV-051` | No raw facial image is retained beyond the retention rule declared for it, and the declared rule is visible to the company Admin and to the worker. |
+| `INV-060` | No credential, second-factor secret or recovery-code verifier exists in a tenant database. All identity material lives in the control plane. |
+| `INV-061` | A grant's scope may name many *registros patronales*, *ubicaciones* or *proyectos*, and always exactly one company. Neither a scope nor a request ever spans two companies (`INV-001`). |
+| `INV-062` | The permission catalogue contains no entry authorising an update or a delete of an evidentiary record. |
+| `INV-063` | Every catalogue entry's database role holds grants on exactly the tables that entry's operations touch. |
+| `INV-064` | Every tenant-scoped table has row-level security enabled, forced, and carrying at least one policy. |
+| `INV-065` | No role assumable from a request path owns a tenant table, and the owning role holds no login credential reachable from application configuration. |
+| `INV-066` | No break-glass session holds a write privilege on any evidentiary table. |
+| `INV-067` | A principal holding grants in more than one company holds no user-management and no role-management permission, under any role composition. |
+| `INV-068` | Every role definition, grant, grant revocation, device enrolment, device revocation and audit entry is sealed into the tenant chain. |
+| `INV-069` | The anchoring keys are unreachable from every code path that writes tenant data. |
 
 ---
 
@@ -1567,6 +1774,37 @@ asserted. Each is a release gate.
 | `NFR-947` | A **load test reproduces the sync burst** in `NFR-503` — many devices reconnecting simultaneously, each carrying days of records — because that burst, not steady state, is the binding load. |
 | `NFR-948` | The **temporal model is tested by time-travel assertions**: for a set of fixture employees, "what was true on date D" is asserted for assignment, wage, contract, IMSS affiliation and org position across dates that span every transition. |
 
+### 9.10 Identity, authorization and security operations
+
+Source: §6.14; ADR-0010 through ADR-0013. The first five are **release gates** and exist because
+`NFR-944` and `NFR-945` as originally written can both pass against a schema that is fully
+readable and writable by the role migrations run as — PostgreSQL row-level security does not
+apply to a table's owner unless it is forced, and owner privileges are implicit rather than
+granted, so neither gate observes them.
+
+| ID | Requirement |
+|---|---|
+| `NFR-1001` | A gate asserts that every tenant-scoped table has row-level security **enabled, forced, and carrying at least one policy**. Enabled without forced, enabled without a policy, and a policy without enabled are three distinct failures and all three fail the gate. Strengthens `NFR-945`. |
+| `NFR-1002` | A gate asserts that no role reachable from a request path holds `UPDATE` or `DELETE` on an evidentiary table, **and** that the unconditional trigger of `FR-1458` is present and enabled on every such table, so the owner cannot perform them either. Strengthens `NFR-944`. |
+| `NFR-1003` | A gate asserts that every permission catalogue entry's declared database role holds grants on exactly the tables that entry's operations touch, and on no others. This is what bounds the blast radius of an application authorization defect. |
+| `NFR-1004` | A gate asserts that the catalogue contains no permission mapping to an operation that updates or deletes an evidentiary table (`FR-1445`). |
+| `NFR-1005` | A gate asserts that no role composable by a tenant Admin yields a principal holding both cross-company grants and user or role management (`FR-1444`). |
+| `NFR-1006` | The isolation suite (`NFR-201`, `NFR-206`) is extended to custom roles: a generated set of role compositions is exercised and none reaches an object outside its permissions or outside its scope. |
+| `NFR-1007` | A test asserts that a transaction opened with no tenant context returns zero rows from every tenant table. |
+| `NFR-1008` | A test asserts that tenant context does not survive a pooled connection into a subsequent transaction. |
+| `NFR-1009` | A test asserts that, for an employee concurrently registered under two *registros patronales* (`FR-207`), a grant over one of them reaches exactly the rows written under it (`FR-1451`). |
+| `NFR-1010` | A test asserts that no code path that writes tenant data can obtain an anchoring key (`FR-1490`). |
+| `NFR-1011` | The offline harness (`NFR-946`) additionally exercises a capability past nominal expiry, a capability past hard expiry, an operator revoked while the device is offline, a device revoked while the device is offline, and an operator change on a device. **Each case must end in a record.** |
+| `NFR-1012` | Authentication, session and recovery flows are covered by tests asserting that recovery never succeeds without a second factor or a recovery code, and that a terminated session cannot be resumed. |
+| `NFR-1013` | Dependency and container image vulnerability scanning gates every deployment (`NFR-107`), with a stated severity threshold and a stated maximum age for an unpatched known-exploited vulnerability. |
+| `NFR-1014` | An independent security review precedes first go-live and recurs annually (`NFR-106`). Its scope is `OQ-047`. |
+| `NFR-1015` | Authentication failures, break-glass openings, grant changes, device enrolments and revocations, chain verification failures and anchoring failures are alertable events with defined severities and owners. |
+| `NFR-1016` | Security telemetry carries no credential material, no biometric material and no personal data (`NFR-103`, `NFR-605`). |
+| `NFR-1017` | An incident response procedure exists, names who decides, and is exercised at least annually. The exercise result is recorded. |
+| `NFR-1018` | On a personal-data breach NEO notifies the affected *responsable* without undue delay with what is known at the time. NEO does not notify the *titular*; that duty belongs to the *responsable* (`A-010`). |
+| `NFR-1019` | NEO can produce, per tenant and per date range, the record of who accessed that tenant's personal data and under what authorisation, as evidence the *responsable* needs for its own obligations. |
+| `NFR-1020` | Compromise of the control plane is treated in the incident procedure as a platform-wide breach, because it holds every identity and every grant for every tenant. |
+
 ---
 
 ## 10. Compliance and audit requirements
@@ -1674,7 +1912,7 @@ If any of these is falsified, the requirements citing it must be revisited.
 
 | ID | Assumption |
 |---|---|
-| `A-001` | Launch envelope: approximately 10 client companies and 500 employees within three months of go-live, generating roughly 22,000 *jornada* events and 90 *listas de asistencia* per month. |
+| `A-001` | Launch envelope: approximately 10 client companies and 500 employees within three months of go-live, generating roughly 44,000 *jornada* events and 90 *listas de asistencia* per month — four punches per employee per working day over 22 working days, per the capacity model in §9.5. ADR-0002 and ADR-0007 argue cost from an earlier figure of 22,000; their conclusions are unaffected, because batching still beats per-event anchoring and the load remains far below the platform's ceilings at either figure. |
 | `A-002` | Stage 2 growth envelope: approximately 50 companies and 5,000 employees. |
 | `A-017` | **Commercial viability requires approximately 20,000 employees across roughly 200 companies** (`NFR-506`). This is the figure the business case closes at, stated by the business. The calendar horizon for reaching it is not recorded (`OQ-034`). |
 | `A-003` | The first clients are construction companies whose operating conditions are as described in §1.1, and their contracts are imminent. |
@@ -1720,7 +1958,11 @@ contract, a specialised services provider? This changes who the *patrón* is for
 and therefore which *registro patronal* applies.
 (a) Out of scope; every worker's *patrón* is the tenant. (b) Model the provider relationship.
 **Recommendation: (a) for v1**, with the question asked of each client during onboarding, because
-discovering it after go-live means remodelling assignments.
+discovering it after go-live means remodelling assignments. The authorization model in ADR-0011
+assumes (a) — a *despacho* that **operates** a client's *Recursos Humanos* function is a delegated
+user of that tenant (`FR-1442`, `FR-1459`), whereas one that **outsources** it would be a different
+*patrón* and therefore a tenant in its own right. This does not close the question; it records what
+breaks if the answer turns out to be (b).
 
 **`OQ-028` — Unionised clients and *contrato colectivo*.** A CCT can override *jornada* rules.
 (a) Handle via the per-*registro patronal* rule set already in `FR-074`. (b) Model the CCT
@@ -1891,7 +2133,10 @@ a worker from working.
 **`OQ-012` — Does any first client require enterprise SSO?**
 (a) Defer until a client requires it. (b) Build OIDC at v1.
 **Recommendation: (a)** — construction clients of this size are unlikely to run an IdP; office and
-clinic clients certainly do not.
+clinic clients certainly do not. → **Narrowed by ADR-0010** (`Proposed`): the federation mechanism
+is designed and its constraint fixed (`FR-1414`, `FR-1415` — identity federates, grants never do),
+so building it stays deferred without becoming a refactor. Whether a first client requires it is
+still open.
 
 **`OQ-013` — Messaging provider and template strategy.**
 (a) WhatsApp through a business provider, with SMS fallback. (b) SMS only. (c) Email only for
@@ -1942,6 +2187,9 @@ move is a planned event rather than an argument. → **Decided in ADR-0007** (`P
 **Recommendation: (a) where service availability permits**, because residency is the first
 question a Mexican compliance buyer asks even where the law does not require it, and it removes
 an objection at no meaningful cost. Verify service availability in the region before committing.
+→ **Narrowed by ADR-0010** (`Proposed`): identity is built first-party inside NEO's own database
+(`FR-1400`), so no user credential leaves whichever region is chosen and this question no longer
+has an identity dimension. It remains open for the platform as a whole.
 
 **`OQ-031` — Historical data migration.** Do clients need existing attendance history loaded?
 (a) No; NEO starts clean at go-live and prior records stay in the old system. (b) Import history.
@@ -1981,6 +2229,114 @@ a v1 requirement rather than a later packaging step.
 covering key storage, attestation, camera, GNSS, monotonic clock and native storage, and the
 distribution path for Android sites with no app-store access. → **Decided in ADR-0006**
 (`Proposed`).
+
+### Identity and security
+
+Source: §6.14; ADR-0010 through ADR-0013.
+
+**`OQ-040` — Session idle timeout and absolute lifetime for the administrative console.**
+(a) 30-minute idle, 12-hour absolute, refresh silently within the absolute window. (b) 8-hour
+idle, 30-day absolute, matching what most SaaS consoles do.
+*Trade-off:* (b) is what users expect and generates no support load; (a) shortens the window in
+which a stolen laptop reaches a tenant's *expediente*. Neither affects capture, which is governed
+by `FR-1421` and never ends in a refusal.
+**Recommendation: (a) for any principal holding cross-company grants or a sensitive-category
+permission, (b) for everyone else.** The risk is concentrated in a small population, and applying
+the strict setting to all of them costs little because they are few.
+
+**`OQ-041` — The local unlock factor on the capture device.**
+(a) The device operating system's own biometric or passcode unlock, releasing a
+hardware-protected key. (b) A NEO-held PIN with its own verifier on the device. (c) Either, per
+company.
+*Trade-off:* (a) is stronger cryptographically — the key is released by hardware, not compared in
+software — and it is what the platform key stores are designed for; but it binds the operator's
+identity to whoever holds the device passcode, which on a shared crew device may be several
+people. (b) separates NEO's operator identity from the device's owner but puts a second
+brute-forceable verifier on a field device, which is exactly the weakness `FR-1431`–`FR-1434`
+exist to bound for workers.
+**Recommendation: (a), with the device passcode a published requirement in the minimum device
+specification (`FR-480`).** Revisit if a client operates genuinely shared devices where the
+passcode is common knowledge, which would make (b) the honest choice.
+
+**`OQ-042` — Whether a second factor is mandatory beyond the set in `FR-1404`.**
+`NFR-108` requires it for Admin and NEO staff; `FR-1404` adds cross-company principals and
+sensitive-category holders. Not covered: *Recursos Humanos*, who hold the whole *expediente*.
+(a) Extend the mandate to *Recursos Humanos*. (b) Leave it available but optional for them.
+**Recommendation: (a).** RH reaches passports, visas and medical documents for the entire
+workforce — a larger prize than a five-employee company's Admin account, which is already
+mandated.
+
+**`OQ-043` — Does the control plane share the PostgreSQL instance chosen in ADR-0007?**
+(a) Same instance, separate schema and separate roles. (b) A separate instance.
+*Trade-off:* (b) is a real blast-radius boundary between the store of every identity and grant
+and the store of tenant rows, and it survives an RLS or role-configuration defect. It also
+roughly doubles the managed-database line item, against `NFR-901` at launch revenue.
+**Recommendation: (a) at launch, (b) before the first dedicated-database tenant goes live**,
+because that is the point at which the control plane starts holding credentials to databases NEO
+does not own (`FR-1493`) and its compromise stops being bounded by NEO's own infrastructure.
+
+**`OQ-044` — Custody model for the anchoring keys.**
+(a) Cloud KMS with a software-protected key, access confined to the anchoring job's deployment
+identity. (b) Cloud KMS with an HSM-protected key. (c) HSM-protected plus dual control on
+rotation and on any change to the key's access policy.
+*Trade-off:* these are the most sensitive keys in the system (ADR-0002), and their compromise
+does not merely leak data — it lets someone forge the evidence the product sells. (b) costs
+little more than (a). (c) costs process, and at two staff (`FR-1461`'s reasoning applies here
+too) dual control is thin.
+**Recommendation: (b) now, (c) as soon as NEO staff headcount makes a second custodian real.**
+Record the intent so it is a scheduled change rather than a discovery during an audit.
+
+**`OQ-045` — The LFPDPPP characterisation of a *despacho* reached through NEO.**
+For counsel, as part of `OQ-001`: is a *despacho* granted access to a client's worker data through
+NEO the **client's *encargado*** (a *remisión*, needing no separate consent from the worker) or a
+third-party ***responsable*** (a *transferencia*, needing consent or a statutory exception and
+disclosure in the *aviso de privacidad*)? Does the answer change when the access reaches *datos
+personales sensibles* such as medical documents? Does NEO's separate commercial relationship with
+the same firm (`FR-1005`, `FR-948`) alter NEO's own position? What must the *aviso de privacidad*
+(`FR-1107`) say for each answer to be lawful? Must the client hold a written agreement with the
+*despacho*, and is NEO entitled to require attestation that one exists?
+(a) Obtain the reading before the first *despacho* is onboarded. (b) Onboard and validate after.
+**Recommendation: (a).** `FR-1467`–`FR-1470` are built to serve either answer, so nothing is
+blocked by asking — but the *aviso* wording depends on it and re-consenting a workforce
+afterwards is expensive.
+
+**`OQ-046` — When does the custom role editor ship?**
+The atomic permission catalogue and the database-role lattice are v1 regardless (`FR-1440`,
+`FR-1455`), because retrofitting them is the expensive version. What is open is the Admin-facing
+editor.
+(a) v1.x — the shipped system roles (`FR-1441`) cover launch, and custom roles are configured by
+NEO on request in the interim. (b) v1.
+**Recommendation: (a)**, folded into `OQ-015`. Ten launch clients configured by hand is a day of
+work; the editor is a screen with a permission tree, a preview and a change log, and it is worth
+building properly rather than early.
+
+**`OQ-047` — Scope of the independent security review (`NFR-106`, `NFR-1014`).**
+(a) External penetration test of the deployed platform only. (b) Penetration test plus a review of
+the authorization model, the RLS policy set and the evidentiary chain implementation.
+*Trade-off:* (a) is cheaper and finds the vulnerabilities an attacker finds. (b) additionally
+examines the two things this product's claim rests on, neither of which a black-box test reaches:
+whether tenant isolation actually holds, and whether the chain does what the verification
+procedure says it does.
+**Recommendation: (b).** A penetration test that never questions the RLS policies would not have
+found the owner-bypass problem that `NFR-1001` and `NFR-1002` exist to prevent.
+
+**`OQ-048` — May an attestation result determine a record's class, or only add a flag?**
+`FR-411` fixes a record's class from the factors collected at capture; §8.5 lists "attestation
+failed" as a cause of `VERIFICADO_DEGRADADO`; `FR-482` performs attestation at sync, after the
+record is signed and sealed. A class that depends on attestation would have to change after
+sealing, which `INV-012` forbids.
+(a) Attestation contributes a permanent flag; the class stays as captured. (b) The class is
+provisional until sync. (c) §8.5's table is corrected to remove attestation from the class
+definition and `FR-411` is left alone.
+**Recommendation: (a) together with (c)** — they are the same answer stated twice, and (b) breaks
+append-only. Until this is settled `FR-1481` applies the (a) behaviour.
+
+**`OQ-049` — Does NEO run a responsible-disclosure programme at v1?**
+(a) A published security contact and disclosure policy, no bounty. (b) A paid bug bounty. (c)
+Neither at v1.
+**Recommendation: (a).** It costs a page and an email address, and it is the difference between a
+finder reporting a tenant-isolation bug to NEO and reporting it to a client. (b) is not fundable
+at launch revenue (`NFR-901`) and (c) means the report goes somewhere else.
 
 ---
 

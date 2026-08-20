@@ -22,7 +22,7 @@ docs/
   system/            specification and design — living
     prd.md             requirements. The source everything derives from
     adr/               architecture decisions, one per decision
-    threat-model.md    (pending — see prompts/prompt_identity_and_security.md)
+    threat-model.md    adversaries, controls and residual risk — living
     workflows/         process and state machines (pending)
     screens.md         screen inventory per persona (pending)
     data-model.md      schema design (pending)
