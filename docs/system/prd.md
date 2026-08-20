@@ -680,6 +680,10 @@ Source: brief §3.4, §3.5.
 | `FR-217` | **Behaviour is declared on the type, never inferred from its name.** A type declares whether instances of it may host *jornada* capture, carry a completion state (`FR-209`), hold a *registro patronal*, and require a geofence (`FR-204`). This is what keeps one flexible entity from becoming a shapeless one: a company may call an *obra* whatever it likes, but whether that thing can be completed or can host a check-in is declared, not guessed. |
 | `FR-218` | A *centro de trabajo* carries an **address**, at a granularity sufficient to determine the IMSS region it falls in. |
 | `FR-219` | A *centro de trabajo* whose type permits it may be attached to a *registro patronal*, at a date. The attachment is temporal: a *centro de trabajo* can exist before its *registro patronal* does. |
+| `FR-221` | A type may declare that its instances **require registration in SIROC** — the IMSS *Servicio Integral de Registro de Obras de Construcción*, mandatory for construction works since 2017. This is a further capability on `FR-217`, which is what lets a regulatory obligation this specific be absorbed without restructuring the entity. |
+| `FR-222` | A *centro de trabajo* requiring SIROC registration records its **SIROC identity**: the registration folio, the registration date, its current status, the phases registered against it, and the declared attributes the registration was made on — at minimum the address, and the budget and surface, because a change to those is itself a reportable event (`FR-649`). |
+| `FR-223` | **Every construction employee's assignment resolves to a SIROC-registered *obra*.** Where the *obra* is not yet registered, the assignment stands and the gap is exposure, never a block — the *obra* exists and people are working on it before the registration is filed, exactly as with the *registro patronal* (`FR-339`). |
+| `FR-224` | SIROC registration is **temporal and independent of the *registro patronal***. An *obra* may hold one, both or neither at a given moment, and the system can answer which as of any past date. |
 | `FR-202` | A company may hold multiple *registros patronales*. Construction clients commonly hold one per *obra*. |
 | `FR-203` | A *registro patronal* records its IMSS registration identifier, its *clase* and *prima de riesgo*, the *delegación*/*subdelegación*, its effective dates, and the *ubicaciones* or *proyectos* it covers. |
 | `FR-204` | A *ubicación* carries a geographic reference and a geofence radius, both effective-dated, because an *obra* perimeter changes as the work advances. |
@@ -889,6 +893,25 @@ template that fails loudly is preferable to a model that succeeds quietly and is
 in a thousand — because the four are undetectable, and a *perito* can be shown a template and a
 check digit but cannot be shown why a model was confident.
 
+#### 6.6.2 SIROC — construction *obra* registration
+
+Source: the *patrón*'s correction, 2026-08-20. **Every legal statement here is subject to
+`OQ-001`** and to the caveat that it was assembled from secondary sources rather than from the
+IMSS's own normative text; the deadlines in particular must be confirmed before they drive an
+alert that a client relies on.
+
+SIROC is a distinct obligation from affiliation. A construction *patrón* registers the *obra*
+itself, the phases it runs in, and the incidents over its life. It replaced the SATIC forms and
+has been mandatory since 2017, and its notice formats retain the SATIC naming.
+
+| ID | Requirement |
+|---|---|
+| `FR-648` | SIROC acuses are a **third ingested artifact class**, alongside the *constancia de movimientos* and the *alta de registro patronal*, on the same custody terms: stored intact, hashed, sealed into the tenant chain, authoritative over anything derived (`FR-601`, `FR-602`, `FR-642`). |
+| `FR-649` | SIROC obligations carry their own clocks, all in **five *días hábiles*** and all computed on the same business-day arithmetic as `FR-614`: registration of the *obra*, counted from the day following the start of work; any change to the attributes the registration was made on, such as budget or surface, counted from the change; and notice of subcontracting any part of the work, counted from execution of the contract. |
+| `FR-650` | The system produces the data for the **monthly report of construction workers per *obra***. NEO already holds exactly what this report needs — who was assigned to which *obra*, on which days — so producing it is an export, not a new collection burden. Whether NEO produces the report itself or the data behind it is `OQ-036`. |
+| `FR-651` | Where an *obra* involves a *contratista* or *subcontratista*, the relationship is recorded against the *obra*, including the counterparty's identity and its own *registro patronal* where it has one. Scope is `OQ-037`. |
+| `FR-652` | Exposure reporting states the **consequence, not only the breach**: a late SIROC registration is itself flagged *extemporáneo* and invites the IMSS to review whether contributions were omitted for the days worked before it. An alert that says what is at stake is acted on; one that says a field is missing is not. |
+
 ### 6.7 Exports and hand-offs
 
 Source: brief §3.8, and the payroll boundary.
@@ -969,6 +992,9 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-837` | ***Obra* not registered in SIROC.** A *centro de trabajo* whose type requires SIROC registration (`FR-221`), with work under way and no registration folio recorded. Fires ahead of the five-*día hábil* deadline, escalates at it, and states the consequence in `FR-652`. Routed to Admin, like `FR-834`, because the remedy is a filing with the IMSS and not an *expediente* correction. |
+| `FR-838` | **SIROC registration attributes changed without notice.** A recorded change to an attribute the registration was made on — address, budget, surface — with no corresponding notice within five *días hábiles* (`FR-649`). |
+| `FR-839` | **Subcontracting not notified.** A *contratista* or *subcontratista* relationship recorded against an *obra* with no SIROC notice within five *días hábiles* of the contract (`FR-651`). |
 | `FR-834` | ***Centro de trabajo* without a *registro patronal*.** A *centro de trabajo* hosting *jornada* capture with no *registro patronal* attached beyond a configured period. Every worker there is accruing exposure that nobody can clear until the *registro patronal* is issued. Routed to Admin, not to RH, because the remedy is with the IMSS and not in the *expediente*. |
 | `FR-835` | ***Registro patronal* mismatch between employee and workplace.** An employee's assigned *registro patronal* differs from the one attached to the *centro de trabajo* where their *jornada* is being captured. Detected from either direction — a worker hired under the wrong *registro patronal*, or a worker working at the wrong *centro de trabajo* — because the two are the same inconsistency seen from opposite ends and the system cannot tell which is the error. Both readings are presented to the reviewer. |
 | `FR-836` | **Region mismatch.** The IMSS region implied by a *centro de trabajo*'s address differs from the region of the *registro patronal* attached to it. Raises a review alert and **never blocks operation** — the mismatch may be a data error, a misclassified address, or a genuine and defensible arrangement, and NEO is not the authority on which. |
@@ -1489,6 +1515,7 @@ These must hold at all times, and each is testable.
 | `INV-052` | Wherever a *registro patronal* is named — a *movimiento*, a *registro patronal* assignment, a *centro de trabajo* attachment, an export — it is a reference to a row in its own tenant's registry. Free text, or a reference resolving to another tenant's registry, is not a valid state. The invariant governs *how* a *registro patronal* is cited, not whether one must be cited: an employee or a *centro de trabajo* may legitimately have none yet (`FR-339`, `FR-219`). |
 | `INV-054` | Every open `RELACION_LABORAL` has a *centro de trabajo* assignment covering every day it is open. A *registro patronal* assignment is optional and may begin later. |
 | `INV-055` | A *centro de trabajo* may be attached to at most one *registro patronal* at any instant, though it may be attached to different ones over time. |
+| `INV-056` | A *centro de trabajo* whose type requires SIROC registration can be created, assigned employees and host *jornada* without a registration folio. The absence is recorded as exposure; it is never a precondition. |
 | `INV-053` | Every *registro patronal* belongs to exactly one *patrón*, and a *patrón* may hold many. |
 | `INV-050` | Every biometric template is linked to an active, unrevoked consent. Revocation makes the template unusable and schedules its deletion. |
 | `INV-051` | No raw facial image is retained beyond the retention rule declared for it, and the declared rule is visible to the company Admin and to the worker. |
@@ -1936,36 +1963,43 @@ there and receives the artifact. NEO neither transmits to the IMSS nor holds the
 (`FR-601`–`FR-615`), with deterministic PDF extraction specified in §6.6.1. The artifact is a
 PDF; the remaining format questions are narrowed in `OQ-006`.
 
-### 11.3 Infonavit
+### 11.3 SIROC
+
+**Out of scope: filing in SIROC.** The same boundary as IDSE (§11.2) — NEO neither transmits nor
+holds credentials. **In scope:** recording each *obra*'s SIROC identity and status, ingesting the
+acuses as a third artifact class, running the five-*día hábil* clocks, and producing the data
+behind each notice for the client to file (`FR-648`–`FR-652`, `OQ-036`).
+
+### 11.4 Infonavit
 
 Document custody and expiry alerting only. No calculation of *retenciones* or *descuentos*
 (§14).
 
-### 11.4 Attendance terminals
+### 11.5 Attendance terminals
 
 Network-connected terminals, indoor and outdoor, push signed events directly to NEO's ingest
 API (`FR-404`, `FR-405`). No file exports, no middleware, no reconciliation for the client. NEO
 publishes the contract; NEO does not sell, certify or warranty devices (`FR-406`).
 
-### 11.5 Payroll and accounting hand-off
+### 11.6 Payroll and accounting hand-off
 
 **Export only.** File export in a client-configured mapping plus a read API (`FR-725`). Per-vendor
 connectors are not built in v1; the target systems the first clients actually run are `OQ-007`.
 NEO does not post to accounting and does not *timbrar*.
 
-### 11.6 Notifications
+### 11.7 Notifications
 
 Email, plus WhatsApp and SMS through a business messaging provider for alerts, enrolment
 verification and recovery. Provider selection, template approval and per-message cost are
 `OQ-013`. Cost discipline is `NFR-903`.
 
-### 11.7 Identity and SSO
+### 11.8 Identity and SSO
 
 Email and password with a second factor for administrative roles at v1. Enterprise SSO
 (OIDC/SAML against Google Workspace or Microsoft Entra) is a demand-driven addition; whether any
 first client requires it is `OQ-012`.
 
-### 11.8 Billing and payments
+### 11.9 Billing and payments
 
 Invoice generation, payment collection and CFDI emission for NEO's own subscription revenue
 (`FR-946`). Payment rail and processor are `OQ-016`.
@@ -2276,6 +2310,32 @@ it, load it into a clearly separated, explicitly unsealed archive.
 particularly one covering a capture path that is deliberately designed to work while the platform
 is down.
 
+**`OQ-036` — Which SIROC notices does NEO produce, and which does it only record?**
+NEO holds the data behind the monthly construction-worker report and the *obra* registration
+attributes, and could generate either. But NEO does not transmit to the IMSS — that boundary is
+settled in ADR-0009 and decision `B3`, and SIROC does not change it.
+(a) NEO records SIROC state and folios, alerts on the clocks, and produces the *data* for each
+notice as an export the client files. (b) NEO produces the completed notice documents. (c) NEO
+records only, with no export.
+**Recommendation: (a).** It is the same posture as the IDSE boundary — NEO makes the deadline
+impossible to miss and hands over everything needed to meet it, without holding the client's
+credentials or filing on their behalf. (b) is a small increment on (a) once the exact formats are
+confirmed and is a good second step, not a first one.
+
+**`OQ-037` — Is subcontracting in scope, and if so how far?**
+A construction *obra* commonly runs through *contratistas* and *subcontratistas*, each potentially
+its own *patrón* with its own *registro patronal*, and SIROC requires the relationship to be
+notified. This overlaps `OQ-027` on REPSE and touches the question of who the *patrón* is for a
+given worker.
+(a) Record the relationship against the *obra* and alert on the notice deadline; every worker in
+NEO still belongs to the tenant. (b) Model the subcontractor's workforce as well. (c) Out of
+scope entirely.
+**Recommendation: (a) for v1.** It captures the obligation NEO can see and alert on, without
+taking on a multi-*patrón* workforce model that would touch tenancy, billing and the *jornada*
+record's attribution all at once. Confirm with the first construction clients how much of their
+workforce is subcontracted — if it is most of it, (b) becomes a v1 question rather than a later
+one.
+
 **`OQ-035` — Is the IMSS five-day filing window counted in calendar or working days? — RESOLVED
 2026-08-20: business days (*días hábiles*).** `FR-614` states it, and business-day arithmetic
 depends on the *días de descanso obligatorio* calendar, which lives in the versioned rule set
@@ -2526,6 +2586,8 @@ throughout the product, the schema and the code.
 
 | Term | Meaning |
 |---|---|
+| **SIROC** | *Servicio Integral de Registro de Obras de Construcción* — the IMSS platform on which construction *patrones* register each *obra*, its phases and its incidents. Mandatory since 2017; replaced the SATIC forms, whose names its notice formats retain. A distinct obligation from affiliation: the *obra* is registered, not just the workers. |
+| **SATIC** | The predecessor forms to SIROC. The naming persists for SIROC's notice types — registration of a contractor phase, work incidents, cancellation of subcontracting, the monthly construction-worker report, and notice of subcontracting. |
 | **IDSE** | *IMSS Desde Su Empresa* — the IMSS online portal through which employers file *movimientos* and receive the resulting artifacts. **The filing itself is outside NEO** (§11.2). |
 | ***Acuse*** | The receipt or acknowledgement document an authority returns after a filing. What clients upload to NEO. |
 | **SUA** | *Sistema Único de Autodeterminación* — the IMSS contribution calculation system. Out of scope. |
