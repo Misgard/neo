@@ -676,7 +676,10 @@ Source: brief §1 (*reglamentación pendiente*), §2.4.
 | `FR-073` | Re-classifying historical records under a new rule set version is an explicit, audited action that produces a new derived result and never alters the underlying *jornada* records. |
 | `FR-074` | Rule sets are assignable per company and, where a *contrato colectivo* or site practice requires it, per *registro patronal* or *ubicación*. |
 | `FR-075` | A change to a statutory rule — including a change to the *jornada máxima* — is deployable as a new rule set version without a code release. |
-| `FR-076` | The rule set version used to produce any report or export is recorded on that artifact and shown to the reader. |
+| `FR-076` | The rule set version used to produce any report or export is recorded on that artifact and shown to the reader, **together with the declared legal basis of any non-default rule set it applied** (`FR-078`). |
+| `FR-077` | A rule set is assignable at company, *registro patronal*, *centro de trabajo*, crew or individual employee level. Rotating arrangements such as *12x12* belong to a crew rather than to a person, and the assignment level must be able to say so (`OQ-039`). |
+| `FR-078` | A rule set that departs from the statutory default — a compressed or rotating *jornada*, a non-standard weekly limit — records a **declared legal basis**: what instrument permits it, typically a *contrato colectivo* or an individual agreement, with the supporting document attached. It may be applied with the document still pending, flagged and escalating on the document ladder (`FR-807`), on the same principle as an unevidenced *registro patronal* (`FR-213`). Blocking would stop lawful work over paperwork. |
+| `FR-079` | **NEO records the basis a client declares; it does not assess its legality.** The *patrón* is the *responsable*, NEO is the *encargado*, and nothing in this system constitutes an opinion that an arrangement is lawful. What the system guarantees is that the basis travels with every record classified under it, so an inspector or a *perito* sees which rules were applied and on whose authority — which is more useful to everyone than a judgement NEO is not competent to make (`OQ-200`). |
 
 ### 6.2 Users, roles and permissions
 
@@ -1039,6 +1042,7 @@ modules.**
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
 | `FR-844` | **Worked while on registered absence.** A *jornada* record exists for a day the employee was recorded as on *vacaciones*, *incapacidad* or *permiso sin goce* (`FR-1366`). Routed to RH and the *contador* before the *periodo* closes, because after payroll runs the remedy is a correction rather than a decision. *Incapacidad* escalates immediately. |
+| `FR-846` | **Absence exception amended over an existing conflict.** An exception created or changed for a day that already holds an observed/expected conflict (`FR-1375`). Surfaced to RH and to the *contador*, with the order of events and who made the change. Never blocked — this is frequently the correct fix. |
 | `FR-845` | **Exception registered long after the fact.** An absence exception entered well after the date it covers (`FR-1369`), beyond a configured lag. Surfaced for review, not blocked — late paperwork and retroactive reclassification look identical at the moment of entry and only a human can tell them apart. |
 | `FR-842` | ***Obra* completed, not closed in SIROC.** A *centro de trabajo* requiring SIROC registration (`FR-221`) marked complete with no closure notice recorded. Escalates, and states the consequence: the *obra* stays open on the IMSS's books and is exposed to audit (`FR-653`). Routed to Admin. |
 | `FR-843` | **Employees still registered under a completed *obra*.** One or more employees hold an active IMSS affiliation under an *obra* that has been completed. Lists them by name and counts down, because this is the item that makes an *obra* closure incomplete and the one most easily forgotten once the site is empty (`FR-654`). |
@@ -1426,6 +1430,10 @@ preferring either (`FR-638`). A day is the same problem: what was *supposed* to 
 
 | ID | Requirement |
 |---|---|
+| `FR-1372` | **Capture is independent of the agreed *jornada*.** The device records every entry and exit as it happens, whatever *jornada* type the employee works under and whatever rules apply to it. Classification is a separate, later, rule-driven step (`FR-071`–`FR-076`). This is what lets a rule set be corrected or re-versioned without touching a single record (`FR-073`). |
+| `FR-1373` | **The capture record is the source of truth about what happened.** The two statements in `FR-1360` are independent, but they are not symmetric on questions of fact: expected state is a claim about the future, observed state is a record of the past, and where they disagree about whether someone was at work, the capture record decides. |
+| `FR-1374` | **Amending expected state never alters observed state.** RH may correct a *vacaciones* registration before payroll runs — that is legitimate and often necessary — but it changes the plan, not the fact. The *jornada* records for those days stand exactly as captured, and the conflict that existed remains on the record with its own history (`INV-057`). |
+| `FR-1375` | Amending or creating an absence exception over a day that **already carries a conflict** raises `FR-846`. Correcting paperwork to match reality and adjusting paperwork to obscure it are the same action seen from outside; the system records the sequence and lets a human read it. |
 | `FR-1360` | Every employee-day carries **two independent statements**: the **expected state** — what the company's records say should happen — and the **observed state** — what the capture record says did. Neither is computed from the other, and **neither ever overwrites the other** (`INV-057`). |
 | `FR-1361` | Expected state is the employee's **work pattern**, overridden by any **exception registered against that date**: *vacaciones*, *incapacidad*, *permiso con* or *sin goce*, *día de descanso*, *día de descanso obligatorio*, *suspensión*. |
 | `FR-1362` | The work pattern is per employee, effective-dated, and covers expected working days, expected start and end, and expected break windows. It is the minimal scheduling model — enough to know who is expected today, not a workforce scheduler. |
@@ -2457,6 +2465,22 @@ credentials or filing on their behalf. (b) is a small increment on (a) once the 
 confirmed and is a good second step, not a first one.
 → **RESOLVED 2026-08-20: (a).** NEO supplies the users who hold the permission with the information
 they need to complete each SIROC submission themselves. NEO does not file.
+
+**`OQ-200` — Does NEO require proof that a non-default *jornada* is lawful, or only a declaration?**
+A *12x12* or other compressed rotation generally rests on a *contrato colectivo* or an equivalent
+agreement, and how current law and its *reglamentos* treat these needs checking under `OQ-001`.
+`FR-078` requires a declared basis with a document attached; this question is whether the document
+is a gate.
+(a) Declaration required, document required but may lag, escalating while pending — never blocking.
+(b) Hard gate: no document, no non-default rule set. (c) Declaration only, no document.
+*Trade-off:* (b) would stop lawful work over paperwork, which contradicts the product's posture
+everywhere else, and it also implies NEO is vetting the instrument — which it is not competent to
+do and should not appear to. (c) leaves nothing behind for an inspector and wastes the fact that
+NEO already stores documents well.
+**Recommendation: (a).** NEO is the *encargado*; the *patrón* carries the legality. What NEO owes
+is that the basis is recorded, evidenced where possible, and carried on every record classified
+under it (`FR-076`, `FR-079`). Confirm with counsel whether a stronger disclaimer is warranted in
+the client contract — that is a contract question rather than a product one.
 
 **`OQ-039` — How is the work pattern captured for rotating and *12x12* crews?**
 `FR-1362` requires a per-employee effective-dated pattern. A fixed Monday-to-Saturday crew is

@@ -31,11 +31,17 @@ range, and take the next free number *within it* — never "the next free number
 
 | Track | `FR` | `NFR` | `INV` | `OQ` |
 |---|---|---|---|---|
+| Core — sessions working directly with the *patrón* | in-section blocks | in-section blocks | 052–059 | **200–299** |
 | Identity and security | 1400–1999 | 1000–1099 | 060–099 | 040–069 |
 | Process workflows | 2000–2999 | 1100–1199 | 100–149 | 070–109 |
 | Testing and telemetry | 3000–3499 | 1200–1299 | 150–179 | 110–139 |
 | Data model and schema | 3500–3999 | 1300–1399 | 180–229 | 140–169 |
 | API and sync protocol | 4000–4499 | 1400–1499 | 230–259 | 170–199 |
+
+Core work — this conversation, and any session working requirement-by-requirement with the
+*patrón* — takes `FR` and `NFR` numbers from the free space inside the relevant section's own
+block, which keeps a requirement's number near its neighbours. Its `OQ` numbers come from
+200–299, because the original `OQ-001`–`039` block was exhausted on 2026-08-20.
 
 Blocks are deliberately larger than a track is likely to need. The identity and security session
 produced 98 `FR`, and exhausted `INV` and `OQ` blocks that had been sized at ten — a track that
