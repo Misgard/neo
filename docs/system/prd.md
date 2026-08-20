@@ -837,15 +837,27 @@ what a *movimiento* says.
 | ID | Requirement |
 |---|---|
 | `FR-620` | On upload the document is **classified**: confirmed as an IMSS artifact and matched to a known layout version, by invariant header text and structural fingerprint. The layout version is recorded on the file. |
-| `FR-621` | Extraction uses a **declarative template per layout version** — anchored labels and column boundaries over the PDF's text layer — held as configuration, not code. A new IMSS layout is a new template, not a release, on the same principle as `FR-712`. |
+| `FR-621` | Extraction uses a **declarative template per layout version**, held as configuration, not code. A new IMSS layout is a new template, not a release, on the same principle as `FR-712`. |
+| `FR-630` | **Templates address fields by position on the page, never by proximity in the extracted text stream.** In the constancia the text layer emits all field labels as one run and all values as another, in a different order — a label-then-next-token parser silently swaps *folio* with *lote* and *RFC* with *registro patronal*. Positional addressing is not a refinement here; a text-flow parser is wrong. |
+| `FR-631` | **Columns are identified by ordinal position within their table, never by header text.** The *Relación de Movimientos* table carries three separate columns all headed `Tipo` — *tipo de movimiento*, *tipo de salario* and *tipo de trabajador* — which are unrelated fields distinguished only by where they sit. |
+| `FR-632` | Document type is determined by classification (`FR-620`), **never by filename**. Observed filenames do not describe contents. |
 | `FR-622` | Every extracted field is **structurally validated before acceptance**: *NSS* length and check digit, *CURP* structure and check digit, *RFC* structure and check digit, date parseability and plausibility, movement type within the enumerated set, *SBC* numeric and within a sane band. |
 | `FR-623` | A field failing validation is never silently accepted. Its row carries the failure and goes to the review queue (`FR-608`). |
-| `FR-624` | The parse is **cross-footed against the document itself**. Where the artifact states a count of *movimientos*, a total, or a folio range, the parsed rows must reconcile to it. A parse that does not reconcile is rejected as **incomplete**, never accepted as partial. This is what makes parse completeness verifiable rather than assumed, and it is the single most valuable check in the pipeline. |
-| `FR-625` | Any *folio*, *cadena original*, *sello digital*, or verification reference the document carries is captured verbatim and retained as independent corroboration of the artifact. |
-| `FR-626` | **Automated extraction is a bounded fallback**, permitted only where the layout is unrecognised or the PDF carries no text layer. Whatever it proposes must pass the validation in `FR-622`; a proposed value that fails a check digit is discarded, not offered as a suggestion. It never commits a value or a match. |
+| `FR-624` | The parse is **cross-footed against the document itself**, and the constancia supports two independent checks. First, the *Concentrado General* states, per movement type, how many *movimientos* were **recibidos** (what the *patrón* submitted), **operados** (what the IMSS registered) and **rechazados** (what it refused); `recibidos = operados + rechazados` must hold. Second, the row count parsed from *Relación de Movimientos Operados* must equal the operados total. A parse that fails either is rejected as **incomplete**, never accepted as partial. This is what makes parse completeness verifiable rather than assumed, and it is the single most valuable check in the pipeline. |
+| `FR-633` | **A rejected *movimiento* did not take effect.** Where `rechazados > 0`, the affected workers remain unregistered and their five-day clocks continue to run. The system records the rejection counts from the *Concentrado General* and raises `FR-833`, whether or not the document itemises the rejected rows. The count alone is sufficient to know that something the *patrón* intended did not happen — and cross-referenced against NEO's own exposure list (`FR-802`), it usually identifies which workers. |
+| `FR-625` | Any *folio*, *sello digital*, *huella digital*, certificate serial, *número de lote* or verification reference the document carries is captured verbatim and retained as independent corroboration of the artifact. The observed constancia carries all of these, including a *huella digital* that is the IMSS's own hash of the lote — an integrity value produced outside NEO and therefore worth more, evidentially, than any hash NEO computes over the same bytes. |
+| `FR-626` | **Automated extraction is a bounded fallback**, permitted only where the layout is unrecognised or the PDF carries no text layer. Whatever it proposes must pass the validation in `FR-622`; a proposed value that fails a check digit is discarded, not offered as a suggestion. It never commits a value or a match. **Not required for v1**: the constancia carries an extractable text layer (`A-015`, confirmed against a real sample), so no automated extraction sits on the critical path. |
 | `FR-627` | Every field records its **extraction provenance**: `template`, `template_low_confidence`, or `automated_proposed_human_confirmed`. Provenance travels with the *movimiento* and appears wherever it is displayed or exported (`FR-609`). |
 | `FR-628` | Each real sample document becomes a **golden-file regression fixture** with its expected parse. Template changes are gated on the whole fixture set passing. |
 | `FR-629` | The parse is always re-runnable against the retained original (`FR-602`). No extracted value is ever the only copy of a fact. |
+| `FR-634` | **A *movimiento*'s *registro patronal* is taken from the `Patrón` block that contains it, and from nowhere else.** A constancia carries up to three distinct *registro patronal* values and only one is authoritative: the one in the `Patrón` block, under which the movement was actually filed and which corresponds to the region of the workers listed beneath it. The value in the legal preamble is the *patrón*'s first registration on the IMSS *escritorio virtual*, kept as a reference; the value in *Información General* varies between documents for reasons not yet established. **Neither is the movement's *registro patronal*, and using either would silently misfile the movement** — corrupting affiliation history (`FR-611`), the supervisor *altas* export (`FR-615`), the concurrent-registration alert (`FR-808`) and the billable count (`INV-041`). |
+| `FR-635` | One document may contain **several `Patrón` blocks**, each with its own *registro patronal* and its own set of movement rows. Rows are attributed to the block that contains them. |
+| `FR-636` | *Registro patronal* is captured **verbatim, without a fixed-length or format assertion.** Observed values differ in length within a single document. A length rule would reject valid IMSS output, and rejecting a document the client cannot re-request is worse than carrying an unusual value forward for review. |
+| `FR-637` | Date formats are validated **per field, not per document.** One constancia carries a lote reception timestamp as `YYYY-MM-DD HH:MM` and a *fecha de movimiento* as `DD/MM/YYYY`. Day-month order is additionally confirmed by an internal consistency check: a *fecha de movimiento* falls on or before the lote reception date. |
+| `FR-638` | The row's ***extemporáneo*** flag is captured. It is the IMSS's own assessment that a filing was late, and it is cross-checked against the exposure NEO computed independently (`FR-802`); a disagreement between the two is a review item, not a silent preference for either. |
+| `FR-639` | *Tipo de trabajador* is captured on the *movimiento*, including the distinct class ***eventual de la construcción***, which will be the common case for the first clients. |
+| `FR-640` | ***Causa de baja*** is captured and mapped to NEO's own vocabulary. Its domain is not numeric — at least one value is a letter — so it is handled as an enumerated code, never parsed as an integer. *Término del contrato* is the value that corresponds to a *proyecto* reaching completion (`FR-312`). |
+| `FR-641` | The enumerations a constancia uses — *tipo de movimiento*, *tipo de salario*, *tipo de trabajador*, *causa de baja* — are held as **versioned tables keyed to the layout version** (`FR-620`). The document states its own legend, so a layout change that alters an enumeration is detectable rather than silently misread. |
 
 **Why a model is kept out of the happy path.** A *movimiento* is an assertion about a person's
 legal status that drives a five-day statutory clock and appears in evidence. A deterministic
@@ -933,6 +945,7 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-833` | **IMSS rejected a *movimiento*.** An ingested constancia reports `rechazados > 0`. The affected workers are not registered, their five-day clocks are still running, and the *patrón* may believe the filing succeeded. Routed to RH and Admin at severity high; escalates on the same ladder as `FR-802`. |
 | `FR-832` | **Deviation without documentation.** A registered *desviación* whose promised supporting document has not arrived within the configured interval (`FR-1338`). |
 
 ### 6.9 Dashboards, account administration, billing and metering
@@ -1241,7 +1254,7 @@ exists to prevent. They are adjudicated by a human with authority over the revok
 | `FR-1478` | Taking a kiosk out of kiosk mode requires authentication by a principal holding that permission, and is audited. |
 | `FR-1479` | A third-party terminal (`FR-404`) is enrolled as a device with its own key, authenticates to the ingest API with a credential distinct from any user credential, and is scoped to one company and a set of *ubicaciones*. |
 | `FR-1480` | Attestation is evaluated at sync (`FR-482`). An attestation failure flags every record in the batch and raises a review item. It never discards a record and never blocks a later capture. |
-| `FR-1481` | Whether an attestation result may also determine a record's class is `OQ-048`. Until that is settled, attestation contributes a flag and the class remains fixed at capture (`FR-411`). |
+| `FR-1481` | An attestation result contributes a **permanent flag** and never a record's class. The class is fixed at capture from the factors collected there (`FR-411`) and never changes afterwards, because attestation resolves at sync and a class that changed after sealing would violate `INV-012`. Decided in `OQ-048`. |
 | `FR-1482` | A device is revoked by a principal holding the device-revocation permission. Revocation invalidates its key for records captured after the revocation instant and invalidates nothing it produced before (`FR-483`). |
 | `FR-1483` | Records arriving from a revoked device whose capture time precedes the revocation instant are accepted and sealed normally. Records with a later capture time are accepted, sealed, permanently flagged, and adjudicated. |
 | `FR-1484` | Revocation instructs the device, at its next contact, to destroy its cached templates, secret verifiers, capability and key material. |
@@ -1524,7 +1537,7 @@ as the same thing. Record class is the mechanism.
 |---|---|
 | `VERIFICADO_BIOMETRICO` | Worker-present biometric match with liveness passed, on an attested device. |
 | `VERIFICADO_SECRETO` | Worker-present secret entered by the worker, with a photograph captured. |
-| `VERIFICADO_DEGRADADO` | Worker-present, but a factor was near-threshold, liveness was inconclusive, or attestation failed. |
+| `VERIFICADO_DEGRADADO` | Worker-present, but a factor collected **at capture** was near-threshold or liveness was inconclusive. Attestation is deliberately not among these: it resolves at sync, after the record is sealed, so it contributes a permanent flag and never the class (`FR-1481`, `OQ-048`). |
 | `ATESTIGUADO` | Supervisor assertion with no worker-bound factor. |
 
 | ID | Requirement |
@@ -1927,7 +1940,7 @@ If any of these is falsified, the requirements citing it must be revisited.
 | `A-012` | Spanish (es-MX) is the only locale required for the foreseeable term. |
 | `A-013` | No client has yet contractually required a dedicated database; the tier is built for readiness, not for a signed commitment (decision `B4`). |
 | `A-014` | An annual commitment plan exists or will exist, because the referral programme's reward trigger depends on it (`OQ-021`). |
-| `A-015` | The IMSS artifact clients upload is a **PDF carrying an extractable text layer**, produced by the IMSS portal rather than scanned. To be confirmed against the sample under `OQ-006`. If false, `FR-626` (automated extraction fallback) becomes load-bearing rather than exceptional. |
+| `A-015` | **Confirmed 2026-08-20** against a real *Constancia de presentación de movimientos afiliatorios*: the IMSS artifact is a PDF with an extractable text layer, produced by the portal rather than scanned. `FR-626` (automated extraction) is therefore not on the critical path for v1. The confirmation covers one layout; others remain unverified (`FR-620`). |
 | `A-016` | A tenant *patrón* may be a *persona moral* or a *persona física* with employees. Both hold *registros patronales*, both are billed identically, and identity fields accommodate both (a 12- or 13-character *RFC*, and a *CURP* where the *patrón* is a natural person). |
 
 ---
@@ -2009,10 +2022,16 @@ text layer or is an image; how many distinct layouts exist; whether the document
 corroboration (`FR-625`).
 (a) Build the deterministic template pipeline in §6.6.1 against real samples. (b) Ship an
 automated-extraction-first parser and refine.
-**Recommendation: (a).** If the PDF has a text layer — which a portal-generated document
-normally does — `FR-626` (automated fallback) is not needed in v1 at all, and the AI component
-disappears from the critical path entirely. → **Pipeline decided in ADR-0009** (`Proposed`);
-template authoring is what still waits on the sample.
+**Recommendation: (a).** → **RESOLVED 2026-08-20 against a real sample.** The artifact is a
+*Constancia de presentación de movimientos afiliatorios* with an extractable text layer, so
+`FR-626` leaves the critical path. The sample also settled more than it was asked to: extraction
+order does not follow visual layout and three columns share the heading `Tipo`, so templates must
+address fields positionally (`FR-630`, `FR-631`); the *Concentrado General* supports two
+independent cross-foots (`FR-624`); rejected *movimientos* are reported and are a live compliance
+signal (`FR-633`, `FR-833`); and only one of the document's three *registro patronal* values is
+authoritative (`FR-634`). One layout is now verified. **Samples still needed** for an *alta*, a
+*baja*, a *modificación de salario*, and a document with `rechazados > 0` — the last because it is
+unknown whether rejected rows are itemised or only counted.
 
 **`OQ-007` — Which payroll systems do the first clients run?**
 (a) File export in a configurable mapping plus a read API, no connectors in v1. (b) Build a
@@ -2204,6 +2223,20 @@ it, load it into a clearly separated, explicitly unsealed archive.
 particularly one covering a capture path that is deliberately designed to work while the platform
 is down.
 
+**`OQ-035` — Is the IMSS five-day filing window counted in calendar or working days, and what
+exactly does the *extemporáneo* flag mark?**
+The observed constancia records a *fecha de movimiento* six calendar days before the lote was
+received, yet the IMSS marked the row as not *extemporáneo*.
+(a) The window is counted in *días hábiles*, and *extemporáneo* marks a breach of it. (b) The
+window is calendar days and *extemporáneo* marks something narrower.
+*Trade-off:* this decides when `FR-802` fires. Counting calendar days when the statute counts
+working days produces alerts that are wrong by up to several days in the client's disfavour —
+which trains people to ignore the alert, the worst outcome for a compliance product.
+**Recommendation: (a), confirmed with counsel as part of `OQ-001`**, and in the meantime compute
+the clock both ways and alert on the earlier while displaying both. `FR-638` already cross-checks
+our computed exposure against the IMSS's own flag, so a wrong assumption surfaces as a
+disagreement rather than as a silent error.
+
 **`OQ-034` — Calendar horizon for the stage 3 viability envelope.**
 `NFR-506` sets 20,000 employees as the volume at which the business case closes, but no date is
 attached to it.
@@ -2257,6 +2290,8 @@ exist to bound for workers.
 **Recommendation: (a), with the device passcode a published requirement in the minimum device
 specification (`FR-480`).** Revisit if a client operates genuinely shared devices where the
 passcode is common knowledge, which would make (b) the honest choice.
+→ **RESOLVED 2026-08-19: (a).** The device passcode becomes a published requirement in the minimum
+device specification. The shared-crew-device case remains the revisit trigger.
 
 **`OQ-042` — Whether a second factor is mandatory beyond the set in `FR-1404`.**
 `NFR-108` requires it for Admin and NEO staff; `FR-1404` adds cross-company principals and
@@ -2329,7 +2364,9 @@ sealing, which `INV-012` forbids.
 provisional until sync. (c) §8.5's table is corrected to remove attestation from the class
 definition and `FR-411` is left alone.
 **Recommendation: (a) together with (c)** — they are the same answer stated twice, and (b) breaks
-append-only. Until this is settled `FR-1481` applies the (a) behaviour.
+append-only.
+→ **RESOLVED 2026-08-19: (a) together with (c).** `FR-1481` now states the behaviour as decided,
+and §8.5's class table no longer lists attestation as a cause of `VERIFICADO_DEGRADADO`.
 
 **`OQ-049` — Does NEO run a responsible-disclosure programme at v1?**
 (a) A published security contact and disclosure policy, no bounty. (b) A paid bug bounty. (c)

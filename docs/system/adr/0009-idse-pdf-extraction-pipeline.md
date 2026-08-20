@@ -36,9 +36,16 @@ than our interpretation of it.
 layout version by invariant header text and structural fingerprint. The layout version is recorded
 on the file.
 
-**3. Extract with a declarative template per layout version** — anchored labels and column
-boundaries over the PDF's text layer — held as configuration, not code. A new IMSS layout is a new
-template, on the same principle as the versioned STPS export mapping.
+**3. Extract with a declarative template per layout version**, held as configuration, not code. A
+new IMSS layout is a new template, on the same principle as the versioned STPS export mapping.
+
+**3a. Templates address fields positionally, not by label proximity.** This is a correction forced
+by the first real sample. The constancia's text layer emits every field label as one run and every
+value as another, in a different order, so a label-then-next-token parser silently swaps *folio*
+with *lote* and *RFC* with *registro patronal*. Separately, the movement table carries three
+distinct columns all headed `Tipo` — movimiento, salario and trabajador — identifiable only by
+ordinal position. A text-flow parser is not merely less robust here; it is wrong (`FR-630`,
+`FR-631`).
 
 **4. Validate every field structurally before accepting it.** *NSS*, *CURP* and *RFC* check digits;
 date parseability and plausibility; movement type within the enumerated set; *SBC* numeric and
@@ -105,12 +112,45 @@ also loses the five-day clock's timeliness to keying delay.
 **Requiring clients to upload a structured file instead.** They receive what the IMSS portal gives
 them. Not our decision to make.
 
-## Open dependency
+## What the first sample settled
 
-One redacted sample of each artifact type. It settles four things, none of which changes this
-pipeline: whether the PDF has an extractable text layer (`A-015`); how many distinct layouts exist;
-whether there is a count or total to cross-foot against; and whether a *sello* or verification
-reference is present to capture. Template authoring is blocked on it. The pipeline is not.
+A real *Constancia de presentación de movimientos afiliatorios* was examined on 2026-08-20. It
+confirmed the pipeline's premises and corrected one of its decisions.
+
+**Confirmed.** The PDF carries an extractable text layer (`A-015`), so automated extraction leaves
+the critical path. The *Concentrado General* supports two independent cross-foots — `recibidos =
+operados + rechazados`, and the operados total against the parsed row count (`FR-624`). Corroborating
+values are richer than assumed: *folio*, *número de lote*, certificate serial, *sello digital*, and a
+*huella digital* that is the IMSS's own hash of the lote — an integrity value produced outside NEO
+and therefore evidentially worth more than any hash NEO computes over the same bytes (`FR-625`). The
+document states its own legend of enumerations, which doubles as a layout fingerprint (`FR-641`). The
+observed *NSS* validates under Luhn, confirming `FR-622`.
+
+**Corrected.** I asserted above that the sample would settle nothing that changed the pipeline. That
+was wrong: positional addressing (decision 3a) is a material change, and a template set built on
+label proximity would have field-swapped silently rather than failing.
+
+**Newly discovered, none of it inferable from the PRD.** A constancia carries up to three distinct
+*registro patronal* values of which exactly one — the `Patrón` block's — is authoritative, and using
+either of the others would silently misfile movements (`FR-634`). One document may hold several
+`Patrón` blocks (`FR-635`). *Registro patronal* lengths differ within a single document, so a format
+assertion would reject valid IMSS output (`FR-636`). Two date formats coexist in one document
+(`FR-637`). Rejected *movimientos* are reported and mean the filing did not take effect, leaving the
+five-day clock running (`FR-633`, `FR-833`). Rows carry an *extemporáneo* flag — the IMSS's own
+lateness assessment — and a *tipo de trabajador* class specific to construction (`FR-638`, `FR-639`).
+
+**Still outstanding.** One layout is verified. Samples of an *alta*, a *baja*, a *modificación de
+salario*, and a document with `rechazados > 0` remain needed — the last because it is unknown whether
+rejected rows are itemised or only counted. `OQ-035` asks whether the five-day window runs in calendar
+or working days.
+
+## Fixture handling
+
+The sample is **not anonymised**. It contains a real *NSS*, *RFC*, worker name and *razón social*.
+Golden fixtures under `FR-628` must therefore be either held outside the public repository or
+synthesised — and a synthetic fixture has to reproduce the **coordinate layout**, not merely the text,
+or it will not exercise the positional templates that decision 3a requires. A fixture that a
+text-flow parser passes is a fixture that proves nothing.
 
 ## Revisit triggers
 
