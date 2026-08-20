@@ -25,7 +25,15 @@ events, and not a headcount at a moment.
 **1. Stripe for payment processing.** Charges, subscription state, payment methods and dunning for
 NEO's subscription revenue.
 
-**2. SW sapien as the CFDI *PAC*.** Stamping of CFDI 4.0 for that revenue.
+**2. SW sapien as the CFDI *PAC*, for the whole lifecycle.** Not stamping alone: issuance,
+cancellation with its *motivo* and the receiver-acceptance flow the post-2022 rules require, status
+queries against a CFDI's *vigente* or cancelled state, *notas de crédito* as CFDI de egreso related
+to the document they correct, *complementos de pago* where a client is billed on terms, and XML
+retrieval. It also covers the receiving side, because NEO is issued CFDIs by its partners and must
+answer cancellation requests against them (`FR-969`, `FR-970`).
+
+The XML is the fiscal document and the PDF is a representation of it. NEO retains the XML, the
+*acuses* and the status responses; a retained PDF is not a retained invoice (`FR-967`).
 
 **3. NEO computes the billable figure; the processor only charges it.** The employee-month is
 derived from NEO's own employment timeline and is reproducible for any past month (`FR-937`,
@@ -50,8 +58,9 @@ is flagged before the billing run and never suspended for it.
 **6. Card data never reaches NEO.** Hosted elements only, keeping NEO out of the handling scope
 that would otherwise apply.
 
-**7. The *PAC* is replaceable.** Stamping is a standardised SAT process behind an interface. No
-requirement may depend on one provider remaining available — the same rule ADR-0002 applies to the
+**7. The *PAC* is replaceable.** Every operation in decision 2 is a standardised SAT process, so
+the interface is shaped by what the SAT requires rather than by one provider's API. No requirement
+may depend on a single *PAC* remaining available — the same rule ADR-0002 applies to the
 timestamping authority, for the same reason.
 
 **8. Delinquency never suppresses capture.** Stripe's dunning drives the delinquency states in
@@ -87,8 +96,9 @@ decision 3: it puts the number NEO must defend inside a system NEO cannot re-der
 survive the stage 2 envelope, and `FR-944`'s delinquency states are not automatable without a
 processor.
 
-**Building CFDI stamping directly against the SAT.** Requires becoming or contracting the
-certification role NEO has no reason to hold.
+**Building the CFDI lifecycle directly against the SAT.** Requires becoming or contracting the
+certification role NEO has no reason to hold — and the cost would land in the cancellation and
+acceptance flows, not in stamping, which is the part that looks hardest and is not.
 
 ## Revisit triggers
 

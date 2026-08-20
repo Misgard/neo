@@ -1100,8 +1100,10 @@ permission flag.** Price points are out of scope; the mechanics below are not.
 | `FR-963` | An account whose fiscal identity is incomplete or fails validation is **flagged before the billing run**, not at it, and escalates on the alert ladder. The service is never suspended for it (`FR-944`). |
 | `FR-964` | Referral discounts (`FR-945`) appear on the CFDI as a *descuento* against the lines they reduce, so the taxable base is correct. A discount applied outside the CFDI is a tax exposure. |
 | `FR-965` | **NEO never handles raw card data.** Card entry uses the processor's hosted elements, and no primary account number, expiry or verification value reaches NEO's systems or logs. |
-| `FR-966` | The CFDI stamping provider is an integration behind an interface, and **the capability must survive changing it**. Stamping is a standardised SAT process; no requirement in this document may depend on one *PAC* remaining available (the same principle as `FR-533`). |
-| `FR-967` | Issued CFDIs, their cancellations, and their acuses are retained as **compliance evidence about NEO itself** (`docs/compliance/`), hashed on receipt like any other evidentiary artifact. |
+| `FR-966` | The *PAC* is an integration behind an interface, and **the capability must survive changing it**. Every operation in `FR-969` is a standardised SAT process that any authorised *PAC* performs, so the interface is defined by what the SAT requires and not by one provider's API. No requirement in this document may depend on a single *PAC* remaining available — the same principle as `FR-533`. |
+| `FR-967` | **The XML is the fiscal document; the PDF is a representation of it.** Every issued CFDI's XML, every *acuse de cancelación*, and every status response is retained as compliance evidence about NEO itself (`docs/compliance/`), hashed on receipt like any other evidentiary artifact. A retained PDF without its XML is not a retained invoice. |
+| `FR-969` | The *PAC* integration covers the **whole CFDI lifecycle the SAT requires**, not issuance alone: stamping; cancellation with its *motivo* and, where the rules require it, the receiver's acceptance; querying whether a CFDI is still *vigente* or cancelled; *notas de crédito* as CFDI de egreso, related to the document they correct; *complementos de pago* where a client is billed on terms (`OQ-038`); and retrieval of the XML and its printable representation. |
+| `FR-970` | NEO is also a **receiver** of CFDIs — partner fee payouts (`FR-968`) — and must therefore act on the receiving side too: accepting or rejecting cancellation requests against documents issued to it, within the SAT's response window, and recording who decided and why. A cancellation request left unanswered is decided by default, which is a decision nobody made. |
 | `FR-968` | Partner fee payouts (`FR-1011`) run in the **opposite direction**: the partner issues a CFDI to NEO and NEO receives it. It is a separate flow from subscription invoicing and shares none of its mechanics. |
 | `FR-947` | A *despacho* or *contador externo* that uses NEO for its own staff is a tenant like any other, billed for its own employees only. It is **never** billed for a client's employees. |
 | `FR-948` | A *despacho* holds up to three simultaneous and independent roles: **tenant** (paying for its own employees), **partner** (earning referral fees, §6.10), and **delegated cross-tenant user** of the clients that granted it access (§6.2). The three are separately modelled, separately granted and separately revocable, and none confers the privileges of another. |
@@ -2088,8 +2090,11 @@ Two integrations, decided in ADR-0014.
 subscription revenue. NEO computes the billable figure and submits it (`FR-960`); Stripe charges
 it. Card data never reaches NEO (`FR-965`).
 
-**CFDI stamping — SW sapien as *PAC*.** Fiscal invoicing of that revenue under CFDI 4.0
-(`FR-946`), behind a replaceable interface (`FR-966`).
+**Fiscal invoicing — SW sapien as *PAC*.** The **complete CFDI 4.0 lifecycle** for that revenue
+(`FR-946`, `FR-969`): issuance, cancellation with its *motivo* and the receiver acceptance flow,
+status queries, *notas de crédito*, *complementos de pago*, and XML retrieval — together with the
+receiving side, since NEO is issued CFDIs by its partners (`FR-970`). Behind a replaceable
+interface (`FR-966`).
 
 The two are distinct artifacts that must reconcile one-to-one (`FR-961`). A Stripe invoice is not
 a fiscal document in Mexico and does not discharge the obligation; a CFDI is not a payment. This is
