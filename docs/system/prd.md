@@ -1094,6 +1094,15 @@ permission flag.** Price points are out of scope; the mechanics below are not.
 | `FR-944` | Delinquency has defined states and consequences, and **capture is never among the consequences**. A delinquent client's workers continue to check in and their records continue to be captured and sealed; administrative and export surfaces are what degrade. Suppressing a statutory record over a payment dispute would expose the client to a violation NEO caused. |
 | `FR-945` | Referral rewards are applied to invoices as discounts with their own expiry, and are itemised. |
 | `FR-946` | NEO issues its own CFDI to clients for its subscription. This is NEO's billing and is unrelated to the payroll boundary in §14. |
+| `FR-960` | **NEO computes the billable figure; the payment processor only charges it.** The metered employee-month (`FR-930`) is derived from NEO's own employment timeline, is reproducible for any past month (`FR-937`), and is submitted to the processor as a computed amount. It is never delegated to the processor's usage aggregation, because a figure NEO cannot re-derive from its own records is a figure it cannot defend in a billing dispute. |
+| `FR-961` | **A charge and a CFDI are two artifacts and must reconcile.** Every settled charge produces exactly one CFDI; every refund produces its corresponding *nota de crédito*. A charge with no CFDI, or a CFDI with no charge, is a reconciliation exception raised to NEO staff — the pairing is a fiscal obligation, not a bookkeeping preference. |
+| `FR-962` | **Fiscal identity is collected and validated at onboarding, before the first invoice**: *RFC*, *razón social*, *régimen fiscal*, the postal code of the *domicilio fiscal*, and *uso de CFDI*. CFDI 4.0 validates these against SAT records, so a wrong value does not produce a bad invoice — it produces no invoice at all. Collecting them at signup rather than at the first billing run is the difference between a form field and a blocked month. |
+| `FR-963` | An account whose fiscal identity is incomplete or fails validation is **flagged before the billing run**, not at it, and escalates on the alert ladder. The service is never suspended for it (`FR-944`). |
+| `FR-964` | Referral discounts (`FR-945`) appear on the CFDI as a *descuento* against the lines they reduce, so the taxable base is correct. A discount applied outside the CFDI is a tax exposure. |
+| `FR-965` | **NEO never handles raw card data.** Card entry uses the processor's hosted elements, and no primary account number, expiry or verification value reaches NEO's systems or logs. |
+| `FR-966` | The CFDI stamping provider is an integration behind an interface, and **the capability must survive changing it**. Stamping is a standardised SAT process; no requirement in this document may depend on one *PAC* remaining available (the same principle as `FR-533`). |
+| `FR-967` | Issued CFDIs, their cancellations, and their acuses are retained as **compliance evidence about NEO itself** (`docs/compliance/`), hashed on receipt like any other evidentiary artifact. |
+| `FR-968` | Partner fee payouts (`FR-1011`) run in the **opposite direction**: the partner issues a CFDI to NEO and NEO receives it. It is a separate flow from subscription invoicing and shares none of its mechanics. |
 | `FR-947` | A *despacho* or *contador externo* that uses NEO for its own staff is a tenant like any other, billed for its own employees only. It is **never** billed for a client's employees. |
 | `FR-948` | A *despacho* holds up to three simultaneous and independent roles: **tenant** (paying for its own employees), **partner** (earning referral fees, §6.10), and **delegated cross-tenant user** of the clients that granted it access (§6.2). The three are separately modelled, separately granted and separately revocable, and none confers the privileges of another. |
 | `FR-949` | A client referred by a *despacho* contracts with NEO and pays NEO directly. The *despacho* receives a selling fee (`FR-1005`) and, where the client grants it, cross-tenant access through the portfolio surface (`FR-122`). |
@@ -2071,10 +2080,21 @@ Email and password with a second factor for administrative roles at v1. Enterpri
 (OIDC/SAML against Google Workspace or Microsoft Entra) is a demand-driven addition; whether any
 first client requires it is `OQ-012`.
 
-### 11.9 Billing and payments
+### 11.9 Billing, payments and fiscal invoicing
 
-Invoice generation, payment collection and CFDI emission for NEO's own subscription revenue
-(`FR-946`). Payment rail and processor are `OQ-016`.
+Two integrations, decided in ADR-0014.
+
+**Payment processing — Stripe.** Charges, subscription state and dunning for NEO's own
+subscription revenue. NEO computes the billable figure and submits it (`FR-960`); Stripe charges
+it. Card data never reaches NEO (`FR-965`).
+
+**CFDI stamping — SW sapien as *PAC*.** Fiscal invoicing of that revenue under CFDI 4.0
+(`FR-946`), behind a replaceable interface (`FR-966`).
+
+The two are distinct artifacts that must reconcile one-to-one (`FR-961`). A Stripe invoice is not
+a fiscal document in Mexico and does not discharge the obligation; a CFDI is not a payment. This is
+NEO's own billing and is unrelated to the payroll boundary in §14 — NEO still does not *timbrar*
+CFDI de nómina for anyone.
 
 ---
 
@@ -2256,6 +2276,9 @@ matters more than the discount at this stage.
 (a) Card plus SPEI through a Mexican processor. (b) SPEI and manual reconciliation.
 **Recommendation: (a)** — delinquency handling (`FR-944`) is only automatable with a processor,
 and manual reconciliation does not survive 100 accounts.
+→ **RESOLVED 2026-08-20: Stripe for payment processing, SW sapien as *PAC* for CFDI stamping.**
+Decided in ADR-0014. Whether prices are IVA-inclusive remains open and is now consequential, since
+it determines how the CFDI's taxable base is composed — folded into `OQ-038`.
 
 **`OQ-005` — Dedicated-database tier pricing.**
 (a) Platform fee plus per-employee rate. (b) A separate enterprise plan.
@@ -2395,6 +2418,21 @@ credentials or filing on their behalf. (b) is a small increment on (a) once the 
 confirmed and is a good second step, not a first one.
 → **RESOLVED 2026-08-20: (a).** NEO supplies the users who hold the permission with the information
 they need to complete each SIROC submission themselves. NEO does not file.
+
+**`OQ-038` — CFDI issuance timing, tax composition, and cancellation.**
+Three connected questions that only matter once invoicing is real, and all three change what the
+document says rather than how it is produced.
+(a) Issue the CFDI on payment as *pago en una exhibición*, with prices IVA-inclusive. (b) Issue on
+invoice as *pago en parcialidades o diferido* and issue a *complemento de pago* on settlement, with
+prices plus IVA.
+*Trade-off:* (a) is far simpler — one document per charge, no *complementos* to chase — and fits a
+card-and-subscription model where payment and invoice coincide. (b) is unavoidable if clients pay
+by transfer on terms.
+**Recommendation: (a) for card and immediate rails, with (b) supported for any client billed on
+terms.** Confirm the IVA treatment with an accountant before the first invoice; it also settles the
+open half of `OQ-016`. Cancellation must follow the post-2022 rules, which require the receiver's
+acceptance in defined cases and a reason code — decide who at NEO may initiate one and how it is
+audited.
 
 **`OQ-037` — Is subcontracting in scope, and if so how far?**
 A construction *obra* commonly runs through *contratistas* and *subcontratistas*, each potentially

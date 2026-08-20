@@ -18,6 +18,7 @@ where it is a recommendation awaiting sign-off.
 | [0007](0007-compute-and-data-platform.md) | Compute and data platform for v1 | Proposed | Serverless containers over Kubernetes for now, with named triggers to move |
 | [0008](0008-employment-imss-lifecycles-and-metering.md) | Two employment lifecycles, and the metering unit | Accepted | Operational vs IMSS lifecycles, exposure as a product, peak-concurrent billing |
 | [0009](0009-idse-pdf-extraction-pipeline.md) | IDSE PDF extraction pipeline | Proposed | Deterministic templates, check digits, cross-footing; AI as a bounded fallback |
+| [0014](0014-payments-and-fiscal-invoicing.md) | Payments and fiscal invoicing | Accepted | Stripe for charging, SW sapien as PAC for CFDI 4.0; NEO computes the figure, the processor charges it |
 | [0010](0010-identity-and-authentication.md) | Identity and authentication | Proposed | First-party auth on our own platform, identity in the control plane, MFA where it matters, device holds a signed capability not a session |
 | [0011](0011-authorization-and-tenant-context.md) | Authorization and tenant context | Proposed | Atomic permissions and tenant-composed roles, database roles fixed by code, forced RLS against the owner, scope stored at write time, authorization history is evidence |
 | [0012](0012-device-identity-and-enrolment.md) | Device identity and enrolment | Proposed | Online enrolment ceremony, device and operator are separate principals, no silent scope inheritance, revocation is time-split |
