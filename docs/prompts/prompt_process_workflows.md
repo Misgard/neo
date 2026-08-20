@@ -18,8 +18,9 @@ full, §8 (capture), and ADR-0004, ADR-0005 and ADR-0006.
 
 ## 1. The gap this fills
 
-PRD §5 contains sixteen user journeys written as prose happy paths. They establish *what* happens.
-They do not establish:
+PRD §5 contains seventeen user journeys written as prose happy paths, of which `UJ-00` — the life
+of an *obra*, from contract through the five-*día hábil* window to closure — is the one every other
+sits inside. They establish *what* happens. They do not establish:
 
 - **State machines.** Most objects in this system have a lifecycle that the PRD names but never
   enumerates — it says "enters a review queue" without saying what states the queue has, who moves
@@ -40,12 +41,29 @@ They do not establish:
 Produce an explicit state machine for each, with states, transitions, the actor authorised for each
 transition, and the terminal states. Where a transition can fail, say what the failure state is.
 
-`RELACION_LABORAL` · `JORNADA` record and its corrections · correction request · overtime
-authorisation · *desviación* · `ARCHIVO_IDSE` ingestion · *movimiento* match · duplicate candidate ·
-provisional employee completion · `LISTA_ASISTENCIA` including reissue after late corrections ·
-*periodo* close and delta reporting · alert from raised through acknowledged, escalated, breached
-and resolved · document expiry · `PROYECTO` from active to complete · referral · ARCO request ·
-break-glass session · device from enrolled through active, unsynced, stale and revoked.
+**Employment and people.** `RELACION_LABORAL` · documentation tier progression, identity-only
+through complete *expediente* (`FR-341`) · provisional employee completion · duplicate candidate ·
+document expiry.
+
+**The *obra*.** `CENTRO_TRABAJO` through **both** compliance windows — the opening window from
+*fecha de inicio físico* and the dependency-ordered closing cascade (`FR-227`, `FR-228`) ·
+`REGISTRO_PATRONAL` registry row from unevidenced to evidenced to end-dated · SIROC registration
+from pending through registered to closed (`FR-653`).
+
+**Capture and the day.** `JORNADA` record and its corrections · correction request · overtime
+authorisation · *desviación* · the daily roster, including a worker present but not on it
+(`FR-1354`) · **expected/observed conflict** from raised through verification to disposition
+(`FR-1366`–`FR-1375`) · the **active-*incapacidad* sequence** specifically: check-in, verification
+requested, either outcome, check-out or escalation (`FR-1376`–`FR-1380`).
+
+**IMSS artifacts.** `ARCHIVO_IDSE` ingestion · *movimiento* match · `MOVIMIENTO_RECHAZADO`
+(`FR-633`, `FR-647`) · *alta de registro patronal* ingestion.
+
+**Reporting and platform.** `LISTA_ASISTENCIA` including reissue after late corrections · *periodo*
+close and delta reporting · alert from raised through acknowledged, escalated, breached and
+resolved · CFDI from issued through cancellation and receiver acceptance (ADR-0014) · referral ·
+ARCO request · break-glass session · device from enrolled through active, unsynced, stale and
+revoked.
 
 ---
 
@@ -83,19 +101,31 @@ and what a worker is told when their check-in produces a flagged or `ATESTIGUADO
 
 ## 5. Workflows to design, by persona
 
-**Supervisor (mobile, offline).** Daily capture loop · field hiring mid-shift · break and check-out
-· registering a *desviación* and attaching signed documentation · requesting overtime authorisation
-· requesting a correction · signing the *lista* · the *altas ante el IMSS* export for a crew ·
-sync, including a sync that partially fails.
+**Supervisor (mobile, offline).** The daily roster and who is missing (`FR-1350`–`FR-1354`) ·
+daily capture loop · field hiring mid-shift · break and check-out · **an expected/observed
+conflict at the gate**, including the active-*incapacidad* verification sequence, which is the
+hardest flow in the product and must be designed for an offline site with RRHH unreachable
+(`FR-1380`) · registering a *desviación* and attaching signed documentation · capturing an
+*incidencia* at source (`FR-1355`) · requesting overtime authorisation · requesting a correction ·
+signing the *lista* · the *altas ante el IMSS* export for a crew · sync, including a sync that
+partially fails.
 
 **Recursos Humanos (desktop).** Bulk employee load and its error queue · completing a provisional
-employee · resolving duplicates · uploading an IDSE PDF and working the match review queue ·
-managing the *expediente* and expiry alerts · approving corrections · working the IMSS exposure
+employee and advancing its documentation tier · resolving duplicates · uploading an IDSE PDF and
+working the match review queue, including a document refused as another *patrón*'s (`FR-646`) ·
+supplying the data for a SIROC submission the client will file (`OQ-036`) · managing the
+*expediente* and expiry alerts · registering and correcting absence exceptions, including a
+correction over a day that already carries a conflict (`FR-846`) · **responding to a supervisor's
+verification request** (`FR-1380`) · approving corrections · working the IMSS exposure
 dashboard.
 
-**Admin (desktop).** Company onboarding, from signature to first check-in on the same day ·
-*registros patronales*, org chart, *ubicaciones* and *proyectos* · users and grants · alert lead
-times and escalation ladders · project completion and its consequences · billing, entitlement
+**Admin (desktop).** Company onboarding, from signature to first check-in on the same day,
+including the fiscal identity CFDI 4.0 requires before the first invoice (`FR-962`) · the
+*registro patronal* registry and its evidencing documents · `CENTRO_TRABAJO` structure and its
+type vocabulary and capabilities (`FR-217`) · **opening an *obra***: physical start, then the
+dependency-ordered window of *registro patronal*, SIROC and IDSE (`FR-226`) · **closing an
+*obra***: the cascade of operational *bajas*, IMSS *bajas* and SIROC closure as one checklist
+(`FR-228`) · users and grants · alert lead times and escalation ladders · billing, entitlement
 overage and the referral surface · producing an STPS export and a verification bundle under time
 pressure.
 
@@ -118,6 +148,10 @@ is logged, and what the user sees when it goes wrong.
 - **A labour dispute**, from the claim arriving to handing over the verification bundle.
 - **An STPS inspection** arriving on site, unannounced, asking a supervisor for records.
 - **A worker revoking biometric consent** and the transition to the baseline path.
+- **A crew hired at the identity-only tier** on the day an *obra* starts, and how the gaps close
+  over the following days without anyone being turned away (`FR-341`, `FR-342`).
+- **The *registro patronal* arriving** after a fortnight of work, and the reviewed bulk assignment
+  that backdates every employee to their start at that *centro de trabajo* (`FR-220`).
 - **A device lost on site** with unsynced records on it.
 - **A client falling delinquent** — capture continues, administrative surfaces degrade.
 
