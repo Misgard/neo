@@ -28,10 +28,16 @@ REFERENCE = re.compile(r"`((?:FR|NFR|INV|OQ|A)-\d+)`")
 
 # Ranges reserved for parallel design sessions; see docs/prompts/.
 RESERVED = {
-    "identity-and-security": {"FR": (1400, 1499), "NFR": (1000, 1099),
-                              "INV": (60, 69), "OQ": (40, 49)},
-    "process-workflows": {"FR": (1500, 1599), "NFR": (1100, 1199),
-                          "INV": (70, 79), "OQ": (50, 59)},
+    "identity-and-security": {"FR": (1400, 1999), "NFR": (1000, 1099),
+                              "INV": (60, 99), "OQ": (40, 69)},
+    "process-workflows": {"FR": (2000, 2999), "NFR": (1100, 1199),
+                          "INV": (100, 149), "OQ": (70, 109)},
+    "testing-and-telemetry": {"FR": (3000, 3499), "NFR": (1200, 1299),
+                              "INV": (150, 179), "OQ": (110, 139)},
+    "data-model-and-schema": {"FR": (3500, 3999), "NFR": (1300, 1399),
+                              "INV": (180, 229), "OQ": (140, 169)},
+    "api-and-sync-protocol": {"FR": (4000, 4499), "NFR": (1400, 1499),
+                              "INV": (230, 259), "OQ": (170, 199)},
 }
 
 

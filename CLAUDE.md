@@ -85,8 +85,10 @@ As of this file's last update, these have no ADR and no requirements beyond what
 - **Testing and telemetry tooling** — see `docs/prompts/prompt_testing_and_telemetry.md`.
 
 > Extend this section as ADRs land, and delete entries as they are decided.
-> Identity, authentication and authorization were removed on 2026-08-19: they are settled in
-> ADR-0010 to ADR-0013, PRD §6.14 and [`docs/system/threat-model.md`](docs/system/threat-model.md).
+> Identity, authentication and authorization were removed on 2026-08-19: they are **decided in
+> ADR-0010 to ADR-0013, PRD §6.14 and [`docs/system/threat-model.md`](docs/system/threat-model.md),
+> all four ADRs currently `Proposed`** — the working assumption, not yet signed off. Design against
+> them; flag it if you need one firm before proceeding.
 
 ## Gates
 

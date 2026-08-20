@@ -31,12 +31,21 @@ range, and take the next free number *within it* — never "the next free number
 
 | Track | `FR` | `NFR` | `INV` | `OQ` |
 |---|---|---|---|---|
-| Identity and security | 1400–1499 | 1000–1099 | 060–069 | 040–049 |
-| Process workflows | 1500–1599 | 1100–1199 | 070–079 | 050–059 |
-| Testing and telemetry | — | 1200–1299 | 080–089 | 060–069 |
+| Identity and security | 1400–1999 | 1000–1099 | 060–099 | 040–069 |
+| Process workflows | 2000–2999 | 1100–1199 | 100–149 | 070–109 |
+| Testing and telemetry | 3000–3499 | 1200–1299 | 150–179 | 110–139 |
+| Data model and schema | 3500–3999 | 1300–1399 | 180–229 | 140–169 |
+| API and sync protocol | 4000–4499 | 1400–1499 | 230–259 | 170–199 |
+
+Blocks are deliberately larger than a track is likely to need. The identity and security session
+produced 98 `FR`, and exhausted `INV` and `OQ` blocks that had been sized at ten — a track that
+runs out mid-session has no good option, since renumbering is worse than the collision it would
+avoid. If your block is running low, **say so rather than spilling into a neighbour's**.
 
 If you must touch a requirement outside your range, **note it in your summary as a conflict**
-rather than editing it silently.
+rather than editing it silently. Amending a neighbouring requirement is legitimate when the work
+genuinely changes it — declaring it is what keeps two tracks from silently contradicting each
+other.
 
 ## Writing requirements
 
