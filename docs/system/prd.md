@@ -495,6 +495,11 @@ flowchart TD
     RP --> I["IDSE movimientos<br/>FR-802"]
     D --> INC["Weekly incidencias<br/>delivered on schedule<br/>FR-728"]
     S --> SC["Ongoing SIROC submissions<br/>NEO supplies the data<br/>FR-650, OQ-036"]
+    D --> E["Obra completed<br/>FR-209"]
+    E --> C{"Closing window<br/>FR-227"}
+    C --> CB["Operational bajas<br/>FR-312, FR-829"]
+    CB --> CI["IMSS bajas for every<br/>employee under the obra<br/>FR-654, FR-843"]
+    CI --> CS["SIROC closure<br/>FR-653, FR-842"]
 ```
 
 The ordering is the point. A project exists in NEO before anyone is on site; the clocks start
@@ -502,6 +507,14 @@ when people do, not when the contract is signed. Hiring and daily capture procee
 whether any registration exists yet. And the *registro patronal* is the root of the compliance
 window — SIROC and IDSE both wait on it, which is why `FR-840` fires first and the others name it
 as their cause rather than presenting as separate failures.
+
+The *obra* closes the same way it opened: as a dependency-ordered window rather than a single act
+(`FR-227`). Completion is not the end of obligations but the start of the second set — every
+employee registered under the *obra* given *baja*, then the *obra* closed in SIROC. An *obra* left
+open on the IMSS's books invites an audit, and the workers still shown as registered under a site
+that no longer exists are the part most easily forgotten once it is empty. NEO presents the whole
+cascade as one checklist (`FR-228`), because three separate alerts arriving over a fortnight is how
+a closure gets half-done.
 
 ### UJ-03 — Daily attendance capture at the *frente* (Supervisor, offline)
 
@@ -708,6 +721,8 @@ Source: brief §3.4, §3.5.
 | `FR-223` | **Every construction employee's assignment resolves to a SIROC-registered *obra*.** Where the *obra* is not yet registered, the assignment stands and the gap is exposure, never a block — the *obra* exists and people are working on it before the registration is filed, exactly as with the *registro patronal* (`FR-339`). |
 | `FR-225` | A *centro de trabajo* records a **fecha de inicio físico** — the first day workers are on site — distinct from the date it was created in NEO and from any contract date. **Every statutory clock runs from the physical start**, not from the commercial one (`FR-649`, `FR-614`). A project is created in NEO before work begins; the clocks do not start until people do. |
 | `FR-226` | The obligations of the five-*día hábil* window have a **fixed order of dependency**: the *registro patronal* must exist before the *obra* can be registered in SIROC, and before any *movimiento* can be filed in IDSE. The *registro patronal* is therefore the critical path, and alerts reflect it — a system that tells a client to register in SIROC while no *registro patronal* exists is naming a step they cannot take (`FR-802`, `FR-837`, `FR-840`). |
+| `FR-227` | An *obra* has **two compliance windows, not one**. The opening window runs from the *fecha de inicio físico* (`FR-225`, `FR-226`). The **closing window** runs from completion and is equally dependency-ordered: every employee registered with the IMSS under that *obra* is given *baja*, and the *obra* is closed in SIROC. Completion is not an end of obligations; it is the start of the second set. |
+| `FR-228` | Completing a *centro de trabajo* (`FR-209`) **opens the closing cascade as one tracked unit**, not as unrelated alerts: the operational *bajas* in NEO (`FR-312`, `FR-829`), the IMSS *bajas* for every employee registered under that *obra* (`FR-805`), and the SIROC closure (`FR-653`). Each is shown with its dependencies and its own state, so an Admin sees one obra-closure checklist rather than three failures arriving separately over a fortnight. |
 | `FR-224` | SIROC registration is **temporal and independent of the *registro patronal***. An *obra* may hold one, both or neither at a given moment, and the system can answer which as of any past date. |
 | `FR-202` | A company may hold multiple *registros patronales*. Construction clients commonly hold one per *obra*. |
 | `FR-203` | A *registro patronal* records its IMSS registration identifier, its *clase* and *prima de riesgo*, the *delegación*/*subdelegación*, its effective dates, and the *ubicaciones* or *proyectos* it covers. |
@@ -937,6 +952,8 @@ has been mandatory since 2017, and its notice formats retain the SATIC naming.
 | `FR-649` | SIROC obligations carry their own clocks, all in **five *días hábiles*** and all computed on the same business-day arithmetic as `FR-614`: registration of the *obra*, counted from the day following the start of work; any change to the attributes the registration was made on, such as budget or surface, counted from the change; and notice of subcontracting any part of the work, counted from execution of the contract. |
 | `FR-650` | The system produces the data for the **monthly report of construction workers per *obra***. NEO already holds exactly what this report needs — who was assigned to which *obra*, on which days — so producing it is an export, not a new collection burden. Whether NEO produces the report itself or the data behind it is `OQ-036`. |
 | `FR-651` | Where an *obra* involves a *contratista* or *subcontratista*, the relationship is recorded against the *obra*, including the counterparty's identity and its own *registro patronal* where it has one. Scope is `OQ-037`. |
+| `FR-653` | **Closing the *obra* in SIROC is an obligation with its own consequence.** An *obra* that ends without being closed in SIROC remains open on the IMSS's books and invites an audit of the *obra*. The system records the closure notice, its date and its acuse, and reports the unclosed state as that consequence rather than as an outstanding field (`FR-652`). |
+| `FR-654` | **No *obra*, no employees under it.** Every employee registered with the IMSS under an *obra* must be given *baja* when the *obra* ends. NEO cannot file the *baja* (§11.2), so it does the two things it can: it enumerates exactly who is still registered under the closing *obra* and remains outstanding, and it escalates until each one is resolved by an ingested *baja* or an explicit recorded reason (`FR-843`). |
 | `FR-652` | Exposure reporting states the **consequence, not only the breach**: a late SIROC registration is itself flagged *extemporáneo* and invites the IMSS to review whether contributions were omitted for the days worked before it. An alert that says what is at stake is acted on; one that says a field is missing is not. |
 
 ### 6.7 Exports and hand-offs
@@ -1021,6 +1038,8 @@ modules.**
 | `FR-829` | ***Proyecto* complete, relationships still open.** A *proyecto* marked complete with any `RELACION_LABORAL` still open against it. Escalates immediately and breaches, because those workers are carried on a contract whose end condition has already occurred. |
 | `FR-830` | **Missing check-out.** A worker with a check-in and no check-out past the expected end of their *jornada*. Fires to the supervisor, then escalates. |
 | `FR-831` | **Unauthorised overtime accruing.** A worker still checked in past the *jornada máxima* with no approved overtime authorisation (`FR-1310`). |
+| `FR-842` | ***Obra* completed, not closed in SIROC.** A *centro de trabajo* requiring SIROC registration (`FR-221`) marked complete with no closure notice recorded. Escalates, and states the consequence: the *obra* stays open on the IMSS's books and is exposed to audit (`FR-653`). Routed to Admin. |
+| `FR-843` | **Employees still registered under a completed *obra*.** One or more employees hold an active IMSS affiliation under an *obra* that has been completed. Lists them by name and counts down, because this is the item that makes an *obra* closure incomplete and the one most easily forgotten once the site is empty (`FR-654`). |
 | `FR-840` | ***Registro patronal* missing at physical start.** A *centro de trabajo* has a *fecha de inicio físico* and no *registro patronal*. This is the **root alert of the window**: SIROC registration and IDSE *movimientos* both depend on it (`FR-226`), so it fires first, and the alerts that depend on it name it as their cause rather than firing as independent failures. |
 | `FR-841` | **Crew hired below full documentation.** A *centro de trabajo* where employees are working at the identity-only or identity-plus-fiscal tier (`FR-341`), reported as a concentration with what each tier blocks (`FR-342`). |
 | `FR-837` | ***Obra* not registered in SIROC.** A *centro de trabajo* whose type requires SIROC registration (`FR-221`), with work under way and no registration folio recorded. Fires ahead of the five-*día hábil* deadline, escalates at it, and states the consequence in `FR-652`. Routed to Admin, like `FR-834`, because the remedy is a filing with the IMSS and not an *expediente* correction. |
