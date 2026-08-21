@@ -408,8 +408,9 @@ accounts, seats, entitlements, billing state, delinquency, consumption, referral
 system health and adoption signals — none of which is personal data about a worker.
 
 Access to tenant personal data requires a **break-glass elevation**: time-boxed, reason-coded,
-approved by a second NEO staff member, written to the tenant's own audit log, and surfaced to
-the company Admin (`FR-1201`–`FR-1205`).
+approved either by a second NEO staff member or by the Admin of the company it targets
+(`FR-1461`), written to the tenant's own audit log, and surfaced to that Admin
+(`FR-1201`–`FR-1205`).
 
 **Explicit restriction:** NEO staff must not have a surface that reports per-worker IMSS
 compliance gaps across clients. Knowing which specific client is filing late is a liability NEO
@@ -777,7 +778,7 @@ Source: brief §3.3; decision `B5`.
 
 | ID | Requirement |
 |---|---|
-| `FR-301` | An employee record holds identity data — legal name, *CURP*, *RFC*, *NSS*, date of birth, nationality — and a photograph used for the identification badge and the profile. |
+| `FR-301` | An employee record holds identity data — legal name, *CURP*, *RFC*, date of birth, nationality — and a photograph used for the identification badge and the profile. **The *NSS* is a collection, not a field**: one person may hold two or three, and NEO holds all of them with their dates and provenance (`FR-2300`, `INV-101`). |
 | `FR-302` | *CURP*, *RFC* and *NSS* are format- and check-digit-validated on entry. A value that fails validation is accepted with a warning and flagged for correction rather than rejected, because a worker on site with a mistyped document must not be blocked from working (`OQ-011` covers whether any of these becomes mandatory). |
 | `FR-303` | The *expediente* stores documents of arbitrary type: contracts and their history with this company, identity documents, passports, visas, work permits, certifications, IMSS documents, Infonavit documents, medical documents, and any other document relevant to the employment relationship. |
 | `FR-304` | Every document type is configurable per company and declares whether it carries expiry semantics. |
@@ -816,11 +817,11 @@ Source: decision `B5`.
 | `FR-333` | A field-enrolled employee is marked **provisional** until RH completes the *expediente*. A provisional employee may accrue *jornada* records without restriction. |
 | `FR-334` | Face enrolment functions with no connectivity and no server round trip. |
 | `FR-335` | On sync, every provisional employee enters RH's completion queue, with the age of the provisional state visible and escalating. |
-| `FR-336` | On sync, every newly created employee is checked for duplication against the company's existing employees on *CURP*, *NSS*, and biometric similarity, and any candidate match enters a **duplicate review queue** for human resolution. Duplicates are never merged automatically. |
+| `FR-336` | On sync, every newly created employee is checked for duplication against the company's existing employees on *CURP* and on *NSS*, either of which is conclusive (`INV-101`), and on normalised name plus date of birth, which **proposes** and never concludes. Any candidate enters a **duplicate review queue** for human resolution. Duplicates are never merged automatically. Biometric similarity is not used: it would require comparing templates outside the device that holds them, and the documented keys settle every case where a document exists (`FR-2303`, `OQ-073`). |
 | `FR-337` | Opening an employment relationship is independent of any IMSS filing. Nothing about the IMSS lifecycle gates it (`INV-020`). |
 | `FR-339` | **Opening an employment relationship requires a *centro de trabajo*. It does not require a *registro patronal*.** The *registro patronal* may not exist yet — the IMSS mints the number when the *obra* is registered — so making it a precondition of hiring would stop work that is already lawfully happening. A *centro de trabajo*, its address and a start date are the minimum to put someone to work (`INV-054`). |
 | `FR-340` | An employee with no *registro patronal* assignment is a **normal, expected state during the *días hábiles* window and while a *registro patronal* is pending**, not an error. It is visible, it is counted in exposure reporting, and it is never blocked. |
-| `FR-341` | An employee may be created at any of three **documentation tiers**, and *jornada* capture works identically at all three: **complete** *expediente*; **identity plus fiscal** — official ID, *RFC* and *NSS*; or **identity only**, an official ID and nothing else. The third is common when a client is rushing to start an *obra*. |
+| `FR-341` | An employee may be created at any of four **documentation tiers**, and *jornada* capture works identically at all four: **complete** *expediente*; **identity plus fiscal** — official ID, *RFC* and *NSS*; **identity only**, an official ID and nothing else; or **declared identity**, a name and a photograph with no document at all, which is what `FR-331` permits at the gate when the worker did not bring papers. The last two are common when a client is rushing to start an *obra*, and the fourth is what makes the duplicate queue load-bearing (`FR-2302`). |
 | `FR-342` | Each tier declares **what it blocks downstream**, and the gap is reported as that consequence rather than as a missing field: without an *NSS* no IMSS *movimiento* can be filed, so the five-*día hábil* clock cannot be stopped; without an *RFC* the fiscal relationship cannot be formalised. Tier gaps escalate on the document ladder (`FR-807`) and are visible per *centro de trabajo*, because a crew hired on identity alone is a concentration of exposure, not a set of unrelated omissions. |
 | `FR-338` | An employment relationship is closed by an explicit **operational *baja*** recorded in NEO. The IMSS *baja* does not close it, and closing it does not file anything with the IMSS. |
 
@@ -874,11 +875,11 @@ flowchart LR
 
 | ID | Requirement |
 |---|---|
-| `FR-520` | The platform composes the *lista de asistencia* per *ubicación*/*proyecto* per *periodo* (or per day, per company configuration) from the *jornada* records it holds. It is derived, never hand-entered. |
+| `FR-520` | The platform composes the *lista de asistencia* per *ubicación*/*proyecto* per *periodo* from the records it holds. It is derived, never hand-entered. **It is not the supervisor's daily list**, which is a working tool carrying no evidentiary weight and is specified separately (`FR-1350`, `FR-2000`, `INV-100`). |
 | `FR-521` | The *lista* shows, per worker per day, the recorded times, the **record class** (§8.5), and any integrity flag. A record captured without worker verification is visibly distinguished on the document itself. |
-| `FR-522` | **Default signature model:** the authenticated check-in event is the worker's signature, and the *lista* carries the supervisor's signature attesting to the set of events. Rationale: each check-in is already individually attributable through the biometric or alternative factor, the device key, and the recorded consent; collecting fifty manuscript signatures on a phone each day adds operational cost without adding attribution. |
-| `FR-523` | **Configurable option — manuscript counter-signature:** a company may require workers to sign the *lista* on the device with a captured manuscript signature, bound to the specific document hash. |
-| `FR-524` | **Configurable option — print-and-scan:** where a site has no usable device at closing, the *lista* is printed with its document hash and a verification reference printed on it, signed on paper, and the scan is uploaded and bound to the electronic original. The electronic record remains authoritative; the scan is corroboration. |
+| `FR-522` | **Default signature model:** the authenticated check-in event is the worker's signature, and the *lista* carries the supervisor's signature attesting to the set of events. Rationale: each check-in is already individually attributable through the biometric or alternative factor, the device key, and the recorded consent; collecting fifty manuscript signatures on a phone each day adds operational cost without adding attribution. **This model stands on its own and is not displaced by the paper cycle of `FR-523` and `FR-524`**: the two are cumulative, and a worker who declines to autograph still leaves an electronic record that is fully attributable (`FR-2196`). Settled in `OQ-026`. |
+| `FR-523` | **Manuscript counter-signature:** workers sign the *lista* — on the device, bound to the specific document hash, or on paper under `FR-524`. Configurable per company and **defaulted on for construction**, because the autographed document is what an inspector expects to be shown (`OQ-026`, `FR-2190`). |
+| `FR-524` | **Print-and-scan:** the *lista* is printed carrying its document hash and verification reference, each worker autographs their own row, discrepancies are written on it and countersigned, and the digitised document is uploaded and bound to the electronic original. The electronic record remains authoritative; the scan is what supports a remote audit. The cycle and its failure states are `FR-2190`–`FR-2199`. |
 | `FR-525` | Once signed, a *lista* is sealed: its bytes are fixed, hashed, entered into the tenant chain, and included in the next external anchor. |
 | `FR-526` | A *lista* is never regenerated in place. If underlying records are corrected after signing, a **new version** of the *lista* is issued, referencing the prior version, and both remain retrievable and exportable. |
 | `FR-527` | Each issued *lista* records the rule set version (`FR-076`) and the software version that produced it. |
@@ -908,14 +909,14 @@ the client uploads that artifact and consists of parsing, matching, populating, 
 | `FR-601` | RH uploads IMSS artifacts returned by the IMSS portal. NEO stores every uploaded file **intact and unmodified**, hashes it, and enters it into the tenant integrity chain. |
 | `FR-602` | The uploaded file is the authoritative record. Parsed *movimientos* are a derived index that can be discarded and re-derived from the file at any time. A parser defect is a reparse, never a data loss. |
 | `FR-603` | **One file may contain many employees, and one employee may have many *movimientos*.** The file, the *movimiento*, and the employee are three distinct entities. |
-| `FR-604` | A *movimiento* records its type — *alta*, *baja*, *modificación de salario*, *reingreso* — the *registro patronal*, the effective date, the *NSS*, the *SBC* where the type carries one, and a reference to the file it came from and the position within it. |
-| `FR-605` | Matching a *movimiento* to an employee is **deterministic first**: exact match on *NSS*, then on *CURP*. |
+| `FR-604` | A *movimiento* records its type — *alta*, *baja*, *modificación de salario*, *reingreso* — the *registro patronal*, the effective date, the *NSS*, the *SBC* where the type carries one, the **declared *jornada* or *semana* type where the layout carries it** (`FR-2380`), and a reference to the file it came from and the position within it. |
+| `FR-605` | Matching a *movimiento* to an employee is **deterministic first**: exact match on *NSS*, which resolves to exactly one person or to nobody (`INV-101`). The artifact carries no *CURP* to corroborate it. An *NSS* nobody holds is unmatched, and a human may attach it to an existing employee as a further *NSS* (`FR-2382`) — which is how a second number is discovered. |
 | `FR-606` | Unmatched records fall to a deterministic fuzzy stage on normalised name plus date of birth, which **proposes** a match and never commits one. |
 | `FR-607` | Field extraction from the uploaded PDF is **deterministic by default**. Automated extraction — OCR or a language model — is a bounded fallback, never the ordinary path, and never commits a value or a match. The pipeline is specified in §6.6.1. |
 | `FR-608` | Every match not resolved by exact key enters a **human review queue**. Confirmation is written to the audit log with the actor, the method used, and the confidence score where one exists. |
 | `FR-609` | The matching method used is retained on every *movimiento* and is visible wherever that *movimiento* is displayed or exported. |
-| `FR-610` | Re-uploading a file already ingested is detected by hash and does not create duplicate *movimientos*. |
-| `FR-611` | The system can answer, for any employee at any past instant: their IMSS affiliation status, the *registro patronal* they were registered under, and the effective dates. |
+| `FR-610` | Re-uploading a file already ingested is detected by hash and does not create duplicate *movimientos*. **File-hash detection is not sufficient on its own** — a re-issued constancia carrying the same movements under a new *folio* is a different file — so idempotency is additionally enforced at the *movimiento* level (`FR-2381`). |
+| `FR-611` | The system can answer, for any employee at any past instant: their IMSS affiliation status, the *registro patronal* they were registered under, and the effective dates. The answer is the **union across every *NSS* that person holds** (`FR-2301`); a history assembled under one number while an *alta* was filed under another is a false exposure. |
 | `FR-612` | The *SBC* declared to the IMSS is derived only from ingested artifacts. NEO never computes, infers, or edits it. |
 | `FR-613` | An employee found registered under two or more *registros patronales* of the same company at the same time raises a review alert distinguishing a probable reporting-window overlap from a probable duplicate registration (`FR-808`). |
 | `FR-614` | The IMSS filing clock is **five *días hábiles*** — business days, not calendar days — computed from the operational hire date, and it drives the exposure alerts in `FR-802`–`FR-805`. Business-day arithmetic observes Mexican *días de descanso obligatorio*, which are themselves held in the versioned rule set (`FR-071`) rather than hard-coded. |
@@ -1054,8 +1055,8 @@ modules.**
 | `FR-804` | ***Jornada* after an IMSS *baja*.** *Jornada* records exist for an employee after a *baja* took effect. Severity critical — a worker is working uninsured. |
 | `FR-805` | **Operational *baja* without an IMSS *baja*.** An employment relationship closed in NEO with no corresponding IMSS *baja* filed within the statutory window. |
 | `FR-806` | **Contract *por tiempo determinado* approaching *término*.** Escalates on the configured ladder. A contract that reaches its *término* with neither renewal nor *baja* breaches immediately and stays on the Admin dashboard, because it is a live legal exposure. |
-| `FR-807` | **Document expiry.** Any *expediente* document with expiry semantics — visa, passport, identity document, work permit, certification — alerts at the lead time configured for its type, escalates, and breaches on the expiry date. |
-| `FR-808` | **Concurrent *registros patronales*.** An employee registered under two or more *registros patronales* of the same company at overlapping dates. Routed to RH and Admin for review, distinguishing a probable reporting-window overlap from a probable duplicate registration. |
+| `FR-807` | **Document expiry, and documents that are missing.** The ladder covers both a document that will expire and a required document that was never supplied — an unevidenced *registro patronal* (`FR-213`), a documentation-tier gap (`FR-342`), a *desviación* awaiting its evidence (`FR-1338`) and a declared legal basis awaiting its instrument (`FR-078`) all escalate here, stating the consequence rather than the empty field. Any *expediente* document with expiry semantics — visa, passport, identity document, work permit, certification — alerts at the lead time configured for its type, escalates, and breaches on the expiry date. |
+| `FR-808` | **Concurrent *registros patronales*.** An employee registered under two or more *registros patronales* of the same company at overlapping dates. Routed to RH and Admin for review, distinguishing a probable reporting-window overlap from a probable duplicate registration. **In construction the overlap is ordinary rather than exceptional**, because the five-*día hábil* window (`FR-614`) routinely leaves an outgoing *baja* unfiled while the incoming *alta* is made, so the rule stays silent for a configurable transfer window and speaks only when the overlap outlives it (`FR-2385`). A rule that fires on the normal case is a rule nobody reads. |
 | `FR-809` | **Wage and *SBC* divergence.** The wage NEO records differs from the *SBC* in the latest IMSS *movimiento* beyond a configured tolerance. |
 | `FR-820` | **Integrity flag raised.** A record whose device-claimed time falls outside its anchored interval, whose monotonic clock evidence is inconsistent, or whose device failed attestation. |
 | `FR-821` | **Chain break detected.** Severity critical, routed to Admin and to NEO staff. |
@@ -1194,7 +1195,7 @@ Source: brief §5; §2.6, §2.7.
 | `FR-1101` | An **append-only audit log** records every action touching a *jornada* record, an IMSS *movimiento*, a wage record, an *expediente* document, a role grant, a consent, an export, or a billing state change. |
 | `FR-1102` | Each entry records the actor, the actor's role and scope at that moment, the object, the action, the time, the source address and device, and the reason code where one applies. |
 | `FR-1103` | The audit log has no update or delete path. Retention is independent of the retention of the objects it describes and is at least as long. |
-| `FR-1104` | An ARCO *cancelación* against a record inside its statutory retention window is honoured by ***bloqueo***: the record is withdrawn from all ordinary processing and access, retained solely to satisfy the legal obligation, and deleted automatically when the window lapses. The requester is told this is what happened and when deletion will occur. |
+| `FR-1104` | An ARCO *cancelación* against a record inside its statutory retention window is honoured by ***bloqueo***: the record is withdrawn from all ordinary processing and access, retained solely to satisfy the legal obligation, and **erased** when the window lapses. Erasure destroys the key under which that person's fields were encrypted; it is never an `UPDATE` or a `DELETE` (`FR-2410`–`FR-2414`, `INV-107`), because no such path exists against an evidentiary record (`FR-501`). The requester is told this is what happened and when erasure will occur. |
 | `FR-1105` | ARCO requests — *acceso*, *rectificación*, *cancelación*, *oposición* — are recorded, tracked against a response deadline, and resolved by the client company as *responsable*. NEO provides the mechanism and the evidence of response. |
 | `FR-1106` | The company Admin can read and export the company's audit log. No other role can, except NEO staff reading their own actions. |
 | `FR-1107` | The *aviso de privacidad* shown to workers is a versioned document; the version accepted is recorded per worker. |
@@ -1226,7 +1227,7 @@ alert early, never block, document every deviation.**
 
 | ID | Requirement |
 |---|---|
-| `FR-1301` | The system holds, per employee, an **expected pattern** — expected working days, expected start and end, and expected break windows — effective-dated. This is the minimal scheduling model from `OQ-010`, and it is a precondition for everything else in this subsection and for classifying *faltas* and *retardos*. |
+| `FR-1301` | The reminders in this subsection are evaluated against the **expected state** of §6.13.6 — the work pattern (`FR-1362`) resolved for the *centro de trabajo* the worker is at (`FR-2505`), overridden by any exception registered against the date (`FR-1361`). Expected state is defined once, there, and is a precondition for everything in this subsection and for classifying *faltas* and *retardos*. |
 | `FR-1302` | Reminders fire to the supervisor **before** the event, not after: approaching break time, approaching end of *jornada*, and approaching the *jornada máxima* under the rule set in force. |
 | `FR-1303` | Reminders are evaluated **on the device, offline**, against the cached pattern and the records the device holds. A site with no signal still gets its reminders. This is the point: the sites most likely to run people past the legal maximum are the sites with no connectivity. |
 | `FR-1304` | A worker who has not checked out within a configured grace period of their expected end raises `FR-830` to the supervisor, then escalates. |
@@ -1261,6 +1262,61 @@ alert early, never block, document every deviation.**
 | `FR-1338` | A *desviación* registered without its promised documentation escalates (`FR-832`) until the documentation arrives or it is closed with a reason. |
 | `FR-1339` | Deviation frequency is reported per supervisor, per site and per *periodo*. A rising rate is an operational signal; a concentration is a review item alongside `FR-413`. |
 | `FR-1340` | *Desviaciones* are append-only under `FR-501`. |
+
+#### 6.13.4 The supervisor's daily roster
+
+Source: the *patrón*'s workflow description, 2026-08-20. This is the screen a supervisor actually
+works from, and the PRD described the capture event without describing the day around it.
+
+| ID | Requirement |
+|---|---|
+| `FR-1350` | The capture application presents the supervisor a **roster of every employee under their `ORG_SUBTREE` expected at that *centro de trabajo* today**, resolved on the device and available offline. The roster is a **working tool and carries no evidentiary weight** (`INV-100`): the supervisor edits it freely and nothing they do to it alters a record. The device caches the whole *obra*'s people, so a worker from another *cuadrilla* is recognised rather than enrolled a second time (`FR-2004`). |
+| `FR-1351` | The roster shows live state per employee: **checked in, on break, checked out, or not yet seen**. Its purpose is not the check-in — it is letting the supervisor see, at a glance, who is missing. |
+| `FR-1352` | An employee who has not appeared by a configured point in the shift is surfaced as **absent-so-far**, and the supervisor can record why against them on the spot — including as an *incidencia* (`FR-1355`). Most supervisors know their crew; the roster exists for the cases they do not, such as a new hire who never arrived. |
+| `FR-1353` | An employee **given *baja* or reassigned away no longer appears** on the roster from the effective date. Their historical records remain intact and attributed. |
+| `FR-1354` | A worker present at the site but **not on the roster** is a first-class case, not an error state. The supervisor sees the discrepancy, and it resolves one of three ways: a field enrolment for a genuinely new hire (`FR-330`); an assignment correction for someone at the wrong *centro de trabajo* (`FR-835`); or, for someone already given *baja*, a **presence record** (`FR-2090`) — the person is recorded and never turned away, but against no employment relationship, because manufacturing one for someone who no longer works there is its own liability. A *baja* may be wrong, may be dated wrong, or may have been overtaken by a verbal rehire that morning; RH decides which, and the presence record becomes a *jornada* only if a rehire is confirmed. |
+
+#### 6.13.5 *Incidencias* captured at source
+
+| ID | Requirement |
+|---|---|
+| `FR-1355` | *Incidencias* are **captured at the moment they occur**, by the supervisor on the device, offline. They are not only derived after the fact from gaps in the *jornada* record. Both origins are recorded and distinguished. |
+| `FR-1356` | Each *incidencia* type carries a **process definition**: which role is notified, what process the notification tells them to start, and any deadline that process is subject to. An *accidente de trabajo* is the clearest case — it starts a *riesgo de trabajo* process with its own IMSS obligations, and the value of capturing it on the device is that the clock starts the hour it happened rather than at the end of the *periodo*. |
+| `FR-1357` | Recording an *incidencia* notifies the responsible role with the employee, the *centro de trabajo*, the type, and **what they must now do** — routed through the alerting subsystem so it escalates and never merely appears once (`FR-813`). |
+| `FR-1358` | Capturing an *incidencia* never blocks or replaces the *jornada* record for that day. The two coexist: what the worker did, and what happened to them. |
+
+#### 6.13.6 Expected state, observed state, and the gap between them
+
+Source: the *patrón*'s answer to `OQ-010`, 2026-08-20. **This is the third application of one
+pattern.** NEO already holds two independent statements about employment — the operational
+relationship and the IMSS affiliation — and makes their disagreement the product (§7.3). It already
+cross-checks its own lateness computation against the IMSS's *extemporáneo* flag rather than
+preferring either (`FR-638`). A day is the same problem: what was *supposed* to happen and what was
+*observed* are separate facts, and neither is derived from the other.
+
+| ID | Requirement |
+|---|---|
+| `FR-1372` | **Capture is independent of the agreed *jornada*.** The device records every entry and exit as it happens, whatever *jornada* type the employee works under and whatever rules apply to it. Classification is a separate, later, rule-driven step (`FR-071`–`FR-076`). This is what lets a rule set be corrected or re-versioned without touching a single record (`FR-073`). |
+| `FR-1373` | **The capture record is the source of truth about what happened.** The two statements in `FR-1360` are independent, but they are not symmetric on questions of fact: expected state is a claim about the future, observed state is a record of the past, and where they disagree about whether someone was at work, the capture record decides. |
+| `FR-1374` | **Amending expected state never alters observed state.** RH may correct a *vacaciones* registration before payroll runs — that is legitimate and often necessary — but it changes the plan, not the fact. The *jornada* records for those days stand exactly as captured, and the conflict that existed remains on the record with its own history (`INV-057`). |
+| `FR-1375` | Amending or creating an absence exception over a day that **already carries a conflict** raises `FR-846`. Correcting paperwork to match reality and adjusting paperwork to obscure it are the same action seen from outside; the system records the sequence and lets a human read it. |
+| `FR-1360` | Every employee-day carries **two independent statements**: the **expected state** — what the company's records say should happen — and the **observed state** — what the capture record says did. Neither is computed from the other, and **neither ever overwrites the other** (`INV-057`). |
+| `FR-1361` | Expected state is the employee's **work pattern**, overridden by any **exception registered against that date**: *vacaciones*, *incapacidad*, *permiso con* or *sin goce*, *día de descanso*, *día de descanso obligatorio*, *suspensión*. |
+| `FR-1362` | The work pattern covers expected working days, expected start and end, and expected break windows. It is a **first-class object assigned to a subject with effective dates** — an employee, a crew or a *centro de trabajo* — and never an attribute of the person (`FR-2500`–`FR-2513`, `OQ-039`). It remains the minimal scheduling model: enough to know who is expected today, not a workforce scheduler. |
+| `FR-1363` | Expected state for the current period is **cached on the capture device and evaluated offline**. The sites where this matters most have the least connectivity, and a warning that requires a network is a warning that does not fire. |
+| `FR-1364` | **Expected state never blocks a capture.** A worker recorded as on *vacaciones* or *incapacidad* who presents themselves is captured, always. This is not a weakening of the rule — it is the case where recording matters most, because if the worker genuinely worked, that is the fact, and refusing to record it would be falsifying the record to make a conflict disappear. |
+| `FR-1365` | Where observed and expected conflict, the capture application **warns the supervisor at that moment, naming the expected state**: *this worker is recorded as on vacaciones*. The supervisor proceeds, and both facts are kept. |
+| `FR-1366` | **Conflicts are classified and carry a severity.** Present while on *vacaciones* — a worker being paid for leave and paid for work on the same day. Present while on *incapacidad* — the most serious, since the IMSS pays a *subsidio* against a medical certificate and the worker's presence contradicts it; escalates immediately and independently of the *periodo* (subject to `OQ-001` for the precise consequences). Present while on *permiso sin goce*. Absent while expected. Present with no expected state at all, which resolves through the roster discrepancy path (`FR-1354`). Working a *día de descanso* is **not** a conflict — it is time to be classified correctly (`FR-724`). |
+| `FR-1376` | **An active *incapacidad* triggers an instruction, not merely a warning — and the first instruction is to verify.** The capture application records the check-in (`FR-1364`) and then directs the supervisor to **confirm the *incapacidad* record with the responsible role** — *Recursos Humanos*, Admin, or whoever the company configures — before acting on it. This is the only conflict class where NEO directs an operational action rather than reporting a discrepancy, because a medical certificate says this person should not be working and the exposure compounds every hour they remain, including a fresh injury on site while formally incapacitated (consequences subject to `OQ-001`). But the record may simply be wrong — the wrong employee, the wrong dates, an *incapacidad* that ended and was never closed — and **the cost of acting on a wrong record falls on the worker, who loses a day's pay for someone else's data error.** Verify, then act. |
+| `FR-1379` | The verification has **exactly two outcomes, and both are recorded**: the *incapacidad* is confirmed, and the supervisor has the worker leave the installations and check out (`FR-1377`); or the record is wrong, and RH corrects it. The correction is an amendment to an absence exception over a day that already carries a conflict, so it raises `FR-846` — which is the intended behaviour, not a side effect: the sequence of *conflict, verification, correction* is exactly the audit trail that shows the register was fixed rather than quietly adjusted. |
+| `FR-1380` | **Verification is routed through NEO where connectivity allows**, so the request, the responder and the answer are recorded rather than living in an untraceable phone call. Where the site is offline or the responsible role is unreachable, the supervisor decides on the ground; the application records what was attempted, what was decided, by whom and on what basis, and the unverified state is escalated at sync. NEO does not pretend it can compel a verification the network will not carry — but it never lets an unverified decision pass as a verified one. |
+| `FR-1377` | **The prompt check-out is the evidence that matters, and the sequence is better evidence than the interval.** A check-in with no check-out for hours reads as a worker who worked the day. A check-in followed by a check-out minutes later, with a recorded cause, reads as a *patrón* who identified the problem and acted. The *desviación* therefore records the **whole timeline** — check-in, verification requested, verification answered, decision, check-out — so that time spent confirming the record is distinguishable from time spent working. Both the timeline and the elapsed total are surfaced on the *lista de asistencia*, in the *incidencias* report and in the STPS export (`FR-1330`). Neither event is ever suppressed, edited or netted out: the honest record of an error promptly corrected is a stronger position than a record that shows nothing happened. |
+| `FR-1378` | **The failure case is the one that must escalate.** Where neither outcome in `FR-1379` is reached within a configured interval — the worker stays, or leaves without checking out, or the verification is never resolved — the day stops being a documented correction and becomes an unexplained shift worked under an active *incapacidad*. `FR-844` escalates immediately, and the *desviación* remains open and escalating until it is closed with a reason (`FR-1338`). The application continues to prompt on the device, because an unprompted supervisor in the middle of a shift change will not remember. **The longer it runs unresolved, the less the record supports a reading of inadvertence** — which is precisely why the system prompts rather than waits. |
+| `FR-1367` | **A supervisor may propose a reclassification, and RH disposes.** Where a *falta* is really unregistered *vacaciones* the supervisor knows about, they record what they know against the day and RH confirms it. The supervisor does not set it directly by default, because *vacaciones* consume an entitlement and move money; a company may configure direct supervisor classification where it prefers speed. Either way the day is recorded immediately and the proposal is never a precondition for the *jornada* record. |
+| `FR-1368` | **The *incidencias* report never silently resolves a conflict.** A day where expected and observed disagree is reported as the conflict it is, with both statements visible, and never flattened into whichever one the report happens to favour. The accountant is about to pay those days — resolving it inside the report would hide the one thing they need to see (`FR-704`). |
+| `FR-1369` | Every exception records **when it was registered as well as which date it covers**, and the lag between them is visible. An exception entered weeks after the day it covers is not forbidden and is not necessarily wrong — but retroactively registering *vacaciones* over a *falta* is a known practice, and a system that shows only the final state cannot distinguish it from ordinary late paperwork. |
+| `FR-1370` | Conflict rates are reported **per supervisor, per *centro de trabajo* and per *periodo***, on the same basis as record-class concentration (`FR-413`). An individual conflict is an incident; a concentration is a practice. |
+| `FR-1371` | A conflict is also a **fraud signal, not only a compliance one**: a check-in for a worker recorded as absent on leave is exactly what buddy punching looks like from the data. The conflict record carries the capture's record class and factors so the two readings can be told apart (§8.5). |
 
 ### 6.14 Identity, authentication, authorization and key management
 
@@ -1308,7 +1364,7 @@ already made and signed, and the server re-evaluates at sync.
 |---|---|
 | `FR-1420` | A capture device holds a **server-signed operator capability**: the operator's identity, the company, the resolved scope, the permission set, the issue time, a nominal expiry and a hard expiry. The device verifies the signature offline and can neither widen nor forge it. |
 | `FR-1421` | The capability is reissued at every sync. Its nominal lifetime defaults to 24 hours and is configurable per company; its hard lifetime is the device retention window (`NFR-940`). |
-| `FR-1422` | **Capability expiry never stops capture.** Past the nominal expiry the device keeps recording and every record carries a disclosed stale-authorization flag. Past the hard expiry it keeps recording at the weakest record class with a mandatory *desviación* (`FR-1330`). |
+| `FR-1422` | **Capability expiry never stops capture.** Past the nominal expiry the device keeps recording and every record carries a disclosed stale-authorization flag. Past the hard expiry it keeps recording with a **second permanent flag and a mandatory *desviación*** (`FR-1330`), and the class still stands as captured. A stale capability removes no factor — the face match still ran — so downgrading the class would misdescribe the evidence and understate it, on exactly the reasoning `FR-1481` applies to attestation (`FR-2091`). |
 | `FR-1423` | The operator unlocks the capture application with a device-bound factor that releases the capability and the use of the device signing key. Unlock never requires connectivity (`OQ-041`). |
 | `FR-1424` | Unlock attempts are rate-limited on the device with escalating backoff. Exhausting the limit locks the application; it never deletes an unsynced record. |
 | `FR-1425` | A capture for a worker outside the device's cached scope is **recorded, never refused**, and flagged for scope review at sync. |
@@ -1316,7 +1372,7 @@ already made and signed, and the server re-evaluates at sync.
 | `FR-1427` | Revoking an operator's access takes effect on the device at its next contact, immediately and with no user action. |
 | `FR-1428` | A device whose operator was revoked while it was offline continues to record. Records whose capture time falls after the revocation instant are accepted, sealed, permanently flagged, and enter the adjudication flow of §6.14.4. They are never silently accepted and never discarded. |
 | `FR-1429` | The residual exposure window — revocation to next device contact — is reported to the Admin at the moment of revocation, together with that device's last contact time, so the client knows its size rather than assuming it is zero. |
-| `FR-1430` | Changing the operator on a device is an explicit act that ends the previous capability, clears the previous operator's scope and cached data from the device, and requires the incoming operator to authenticate. **A device never silently inherits the previous operator's scope.** |
+| `FR-1430` | Changing the operator on a device is an explicit act that ends the previous capability, clears the previous operator's scope, and requires the incoming operator to authenticate. **A device never silently inherits the previous operator's scope.** The encrypted roster and template cache belong to the device's company rather than to its operator and are **retained** across a handover, usable only under a valid capability whose scope reaches the worker (`FR-2470`): clearing them would leave an incoming shift at an offline site unable to identify anybody until it found signal. |
 
 #### 6.14.3 The worker-held secret
 
@@ -1425,60 +1481,250 @@ exists to prevent. They are adjudicated by a human with authority over the revok
 | `FR-1496` | Access to a secret or a key is logged, attributable and alertable. |
 | `FR-1497` | No secret, key, credential verifier or biometric template appears in any backup, export or support surface reachable by NEO staff (`NFR-103`). |
 
-#### 6.13.4 The supervisor's daily roster
 
-Source: the *patrón*'s workflow description, 2026-08-20. This is the screen a supervisor actually
-works from, and the PRD described the capture event without describing the day around it.
+### 6.15 Process and workflow requirements
 
-| ID | Requirement |
-|---|---|
-| `FR-1350` | The capture application presents the supervisor a **roster of every employee under their `ORG_SUBTREE` expected at that *centro de trabajo* today**, resolved on the device and available offline. |
-| `FR-1351` | The roster shows live state per employee: **checked in, on break, checked out, or not yet seen**. Its purpose is not the check-in — it is letting the supervisor see, at a glance, who is missing. |
-| `FR-1352` | An employee who has not appeared by a configured point in the shift is surfaced as **absent-so-far**, and the supervisor can record why against them on the spot — including as an *incidencia* (`FR-1355`). Most supervisors know their crew; the roster exists for the cases they do not, such as a new hire who never arrived. |
-| `FR-1353` | An employee **given *baja* or reassigned away no longer appears** on the roster from the effective date. Their historical records remain intact and attributed. |
-| `FR-1354` | A worker present at the site but **not on the roster** is a first-class case, not an error state. The supervisor sees the discrepancy, and it resolves one of three ways: a field enrolment for a genuinely new hire (`FR-330`); an assignment correction for someone at the wrong *centro de trabajo* (`FR-835`); or a refusal for someone already given *baja*, which is recorded — an attempt to check in after *baja* is a fact worth keeping, not a null result. |
+Source: [`prompt_process_workflows.md`](../prompts/prompt_process_workflows.md) and the decisions
+taken in that session, 2026-08-20. Designed in [`workflows/`](workflows/) and inventoried in
+[`screens.md`](screens.md).
 
-#### 6.13.5 *Incidencias* captured at source
+Read as a unit. §5's journeys establish *what* happens; this section establishes the states, the
+failure paths and the hand-offs, which is where the product is actually won or lost. Three
+properties run through all of it: **a supervisor is offline and alone**, **every exception ends in
+a record**, and **elapsed time escalates a decision without ever making one** (`FR-081`).
 
-| ID | Requirement |
-|---|---|
-| `FR-1355` | *Incidencias* are **captured at the moment they occur**, by the supervisor on the device, offline. They are not only derived after the fact from gaps in the *jornada* record. Both origins are recorded and distinguished. |
-| `FR-1356` | Each *incidencia* type carries a **process definition**: which role is notified, what process the notification tells them to start, and any deadline that process is subject to. An *accidente de trabajo* is the clearest case — it starts a *riesgo de trabajo* process with its own IMSS obligations, and the value of capturing it on the device is that the clock starts the hour it happened rather than at the end of the *periodo*. |
-| `FR-1357` | Recording an *incidencia* notifies the responsible role with the employee, the *centro de trabajo*, the type, and **what they must now do** — routed through the alerting subsystem so it escalates and never merely appears once (`FR-813`). |
-| `FR-1358` | Capturing an *incidencia* never blocks or replaces the *jornada* record for that day. The two coexist: what the worker did, and what happened to them. |
+#### 6.15.1 The capture session and the daily list
 
-#### 6.13.6 Expected state, observed state, and the gap between them
-
-Source: the *patrón*'s answer to `OQ-010`, 2026-08-20. **This is the third application of one
-pattern.** NEO already holds two independent statements about employment — the operational
-relationship and the IMSS affiliation — and makes their disagreement the product (§7.3). It already
-cross-checks its own lateness computation against the IMSS's *extemporáneo* flag rather than
-preferring either (`FR-638`). A day is the same problem: what was *supposed* to happen and what was
-*observed* are separate facts, and neither is derived from the other.
+The document previously used *lista de asistencia* for two different artifacts. They are separated
+here: the **daily list** is the supervisor's working tool and the ***lista de asistencia*** is the
+evidentiary document of §6.5.3.
 
 | ID | Requirement |
 |---|---|
-| `FR-1372` | **Capture is independent of the agreed *jornada*.** The device records every entry and exit as it happens, whatever *jornada* type the employee works under and whatever rules apply to it. Classification is a separate, later, rule-driven step (`FR-071`–`FR-076`). This is what lets a rule set be corrected or re-versioned without touching a single record (`FR-073`). |
-| `FR-1373` | **The capture record is the source of truth about what happened.** The two statements in `FR-1360` are independent, but they are not symmetric on questions of fact: expected state is a claim about the future, observed state is a record of the past, and where they disagree about whether someone was at work, the capture record decides. |
-| `FR-1374` | **Amending expected state never alters observed state.** RH may correct a *vacaciones* registration before payroll runs — that is legitimate and often necessary — but it changes the plan, not the fact. The *jornada* records for those days stand exactly as captured, and the conflict that existed remains on the record with its own history (`INV-057`). |
-| `FR-1375` | Amending or creating an absence exception over a day that **already carries a conflict** raises `FR-846`. Correcting paperwork to match reality and adjusting paperwork to obscure it are the same action seen from outside; the system records the sequence and lets a human read it. |
-| `FR-1360` | Every employee-day carries **two independent statements**: the **expected state** — what the company's records say should happen — and the **observed state** — what the capture record says did. Neither is computed from the other, and **neither ever overwrites the other** (`INV-057`). |
-| `FR-1361` | Expected state is the employee's **work pattern**, overridden by any **exception registered against that date**: *vacaciones*, *incapacidad*, *permiso con* or *sin goce*, *día de descanso*, *día de descanso obligatorio*, *suspensión*. |
-| `FR-1362` | The work pattern is per employee, effective-dated, and covers expected working days, expected start and end, and expected break windows. It is the minimal scheduling model — enough to know who is expected today, not a workforce scheduler. |
-| `FR-1363` | Expected state for the current period is **cached on the capture device and evaluated offline**. The sites where this matters most have the least connectivity, and a warning that requires a network is a warning that does not fire. |
-| `FR-1364` | **Expected state never blocks a capture.** A worker recorded as on *vacaciones* or *incapacidad* who presents themselves is captured, always. This is not a weakening of the rule — it is the case where recording matters most, because if the worker genuinely worked, that is the fact, and refusing to record it would be falsifying the record to make a conflict disappear. |
-| `FR-1365` | Where observed and expected conflict, the capture application **warns the supervisor at that moment, naming the expected state**: *this worker is recorded as on vacaciones*. The supervisor proceeds, and both facts are kept. |
-| `FR-1366` | **Conflicts are classified and carry a severity.** Present while on *vacaciones* — a worker being paid for leave and paid for work on the same day. Present while on *incapacidad* — the most serious, since the IMSS pays a *subsidio* against a medical certificate and the worker's presence contradicts it; escalates immediately and independently of the *periodo* (subject to `OQ-001` for the precise consequences). Present while on *permiso sin goce*. Absent while expected. Present with no expected state at all, which resolves through the roster discrepancy path (`FR-1354`). Working a *día de descanso* is **not** a conflict — it is time to be classified correctly (`FR-724`). |
-| `FR-1376` | **An active *incapacidad* triggers an instruction, not merely a warning — and the first instruction is to verify.** The capture application records the check-in (`FR-1364`) and then directs the supervisor to **confirm the *incapacidad* record with the responsible role** — *Recursos Humanos*, Admin, or whoever the company configures — before acting on it. This is the only conflict class where NEO directs an operational action rather than reporting a discrepancy, because a medical certificate says this person should not be working and the exposure compounds every hour they remain, including a fresh injury on site while formally incapacitated (consequences subject to `OQ-001`). But the record may simply be wrong — the wrong employee, the wrong dates, an *incapacidad* that ended and was never closed — and **the cost of acting on a wrong record falls on the worker, who loses a day's pay for someone else's data error.** Verify, then act. |
-| `FR-1379` | The verification has **exactly two outcomes, and both are recorded**: the *incapacidad* is confirmed, and the supervisor has the worker leave the installations and check out (`FR-1377`); or the record is wrong, and RH corrects it. The correction is an amendment to an absence exception over a day that already carries a conflict, so it raises `FR-846` — which is the intended behaviour, not a side effect: the sequence of *conflict, verification, correction* is exactly the audit trail that shows the register was fixed rather than quietly adjusted. |
-| `FR-1380` | **Verification is routed through NEO where connectivity allows**, so the request, the responder and the answer are recorded rather than living in an untraceable phone call. Where the site is offline or the responsible role is unreachable, the supervisor decides on the ground; the application records what was attempted, what was decided, by whom and on what basis, and the unverified state is escalated at sync. NEO does not pretend it can compel a verification the network will not carry — but it never lets an unverified decision pass as a verified one. |
-| `FR-1377` | **The prompt check-out is the evidence that matters, and the sequence is better evidence than the interval.** A check-in with no check-out for hours reads as a worker who worked the day. A check-in followed by a check-out minutes later, with a recorded cause, reads as a *patrón* who identified the problem and acted. The *desviación* therefore records the **whole timeline** — check-in, verification requested, verification answered, decision, check-out — so that time spent confirming the record is distinguishable from time spent working. Both the timeline and the elapsed total are surfaced on the *lista de asistencia*, in the *incidencias* report and in the STPS export (`FR-1330`). Neither event is ever suppressed, edited or netted out: the honest record of an error promptly corrected is a stronger position than a record that shows nothing happened. |
-| `FR-1378` | **The failure case is the one that must escalate.** Where neither outcome in `FR-1379` is reached within a configured interval — the worker stays, or leaves without checking out, or the verification is never resolved — the day stops being a documented correction and becomes an unexplained shift worked under an active *incapacidad*. `FR-844` escalates immediately, and the *desviación* remains open and escalating until it is closed with a reason (`FR-1338`). The application continues to prompt on the device, because an unprompted supervisor in the middle of a shift change will not remember. **The longer it runs unresolved, the less the record supports a reading of inadvertence** — which is precisely why the system prompts rather than waits. |
-| `FR-1367` | **A supervisor may propose a reclassification, and RH disposes.** Where a *falta* is really unregistered *vacaciones* the supervisor knows about, they record what they know against the day and RH confirms it. The supervisor does not set it directly by default, because *vacaciones* consume an entitlement and move money; a company may configure direct supervisor classification where it prefers speed. Either way the day is recorded immediately and the proposal is never a precondition for the *jornada* record. |
-| `FR-1368` | **The *incidencias* report never silently resolves a conflict.** A day where expected and observed disagree is reported as the conflict it is, with both statements visible, and never flattened into whichever one the report happens to favour. The accountant is about to pay those days — resolving it inside the report would hide the one thing they need to see (`FR-704`). |
-| `FR-1369` | Every exception records **when it was registered as well as which date it covers**, and the lag between them is visible. An exception entered weeks after the day it covers is not forbidden and is not necessarily wrong — but retroactively registering *vacaciones* over a *falta* is a known practice, and a system that shows only the final state cannot distinguish it from ordinary late paperwork. |
-| `FR-1370` | Conflict rates are reported **per supervisor, per *centro de trabajo* and per *periodo***, on the same basis as record-class concentration (`FR-413`). An individual conflict is an incident; a concentration is a practice. |
-| `FR-1371` | A conflict is also a **fraud signal, not only a compliance one**: a check-in for a worker recorded as absent on leave is exactly what buddy punching looks like from the data. The conflict record carries the capture's record class and factors so the two readings can be told apart (§8.5). |
+| `FR-2000` | The **daily list** is a working tool held on the device and carries no evidentiary weight. The supervisor adds to it, removes from it and works from it freely, and **no edit to it creates, alters, suppresses or reclassifies a *checada*** (`INV-100`). Its retention is operational and is `OQ-072`. |
+| `FR-2001` | A capture session opens with the operator **declaring the *centro de trabajo*** they are at, chosen from the device's scope (`FR-1475`). The declaration is recorded on every *checada* captured in that session and is the value scope predicates test (`FR-1450`). |
+| `FR-2002` | Position evidence **corroborates the declaration and never replaces it**. A declared *centro de trabajo* whose geofence does not contain the session's fixes raises a review item stating both readings (`FR-2273`) and never blocks a capture (`FR-455`). This is the check that distinguishes a crew at the *obra* from a crew somewhere else being reported as at the *obra*. |
+| `FR-2003` | A session ends explicitly, on an operator change (`FR-1430`), or after a configured idle period. A *checada* is never captured outside a session, so every record has a declared place and a named operator or an explicit absence of one (`FR-1476`). |
+| `FR-2004` | The device caches the roster, expected state and templates for **the whole *obra* within its scope**, not only the operator's `ORG_SUBTREE`. Capture *permission* remains the subtree and a capture outside it is recorded and flagged (`FR-1425`); what widens is **recognition**. A worker moved between *cuadrillas* that morning is otherwise unrecognisable to the receiving device and gets enrolled a second time, which is the single largest source of duplicates. |
+| `FR-2005` | The daily list shows live state per person — not yet seen, checked in, on break, checked out, set aside — and the count in each, so the supervisor reads the shape of the shift at a glance rather than searching for a name. |
+| `FR-2006` | Adding a person to the daily list resolves two ways and the application chooses, not the operator: **found** in the cached *obra* roster, they are added for the day and flagged for scope review at sync; **not found**, the application continues directly into field enrolment (`FR-330`). A *checada* is never captured against a name with no employee record. |
+| `FR-2007` | Removing a person from the daily list asks why, and the answer routes: *not in my crew today* is a list-only action; *left the company* records a **proposed operational *baja*** (`FR-2008`); *given baja already* is the roster catching up with a decision RH already made. |
+| `FR-2008` | A supervisor may **propose an operational *baja***. It takes effect only when a principal holding the closing permission disposes of it (`FR-338`), because closing a relationship ends billing, ends the contract and starts the IMSS *baja* clock. The person leaves that supervisor's daily list on the proposal so they stop appearing every morning; no record of theirs changes. |
+| `FR-2009` | The daily list is rebuilt each day from expected state (`FR-1361`). An edit made on one day never carries into the next, because a list that accumulates edits stops describing today. |
+
+#### 6.15.2 *Checada*, *jornada*, and the employee-day
+
+| ID | Requirement |
+|---|---|
+| `FR-2030` | **`CHECADA` is one capture event** — a check-in, a check-out, or the start or end of a break — and it is the evidentiary record that is signed, chained and sealed. **`JORNADA` is one continuous work period**, composed of the *checadas* that bound it, and it is the object art. 132 fr. XXXIV obliges the *patrón* to register with its start and its end. Every requirement written before this section that says *"jornada record"* means the `CHECADA` and the `JORNADA` it composes. |
+| `FR-2031` | A *jornada* runs from an opening *checada* to the *checada* that closes it, with breaks inside it. A gap exceeding the **jornada split threshold** opens a new *jornada* instead of continuing the old one. The threshold is rule-set data (`FR-071`, `FR-077`), so a split shift and a *12x12* are configuration rather than code. |
+| `FR-2032` | Whether *jornada máxima* counts **elapsed time from the opening *checada*** or **the sum of worked intervals with breaks excluded** is a named rule-set parameter, and it is stated on every artifact that reports overtime (`FR-076`). It decides when `FR-1302`'s warning fires and when `FR-831` is raised, so it is never left implicit (`OQ-070`). |
+| `FR-2033` | A *jornada* is attributed to a calendar day by a rule-set parameter defaulting to **the day its opening *checada* falls in**, configurable per company and per *centro de trabajo* (`FR-074`). Without it a *jornada nocturna* is counted twice, once on each calendar day it touches, and its worker reads as absent on both. |
+| `FR-2034` | The ***jornada* type declared on the ingested IDSE *alta*** (`FR-2380`) seeds the employee's default and is then **cross-checked** against the work pattern and against the observed record. Divergence is a review item and never a silent preference for either — the fourth application of the pattern §6.13.6 describes. |
+| `FR-2035` | An **open *jornada*** — an opening *checada* with no closing one, past the expected end plus grace — is a first-class state, never auto-closed (`FR-1305`, `FR-081`). It is shown as open on the *lista de asistencia*, in the *incidencias* report and in the STPS export, and it raises `FR-830`. A day silently counted as full, or silently counted as absent, is a day the record lies about. |
+| `FR-2036` | Breaks are ordinary *checadas*, and **an odd number of events in a *jornada* is a normal shape rather than an error**: a worker who goes for a break and does not come back produces one. |
+| `FR-2037` | Where the last *checada* of a *jornada* is ambiguous between *left for a break* and *went home*, **the system does not choose**. It records the ambiguity, prompts the operator before the session closes (`FR-2038`), and otherwise reports an open *jornada* under `FR-2035` until a correction or a *desviación* settles it. |
+| `FR-2038` | Closing a capture session presents every person still showing as checked in or on break, so the supervisor can close them, set aside a *desviación*, or leave them open deliberately. The prompt is advisory: it never writes a record and never closes a *jornada* (`FR-1305`). |
+| `FR-2039` | The **employee-day** carries the expected state, the observed state, and — where they conflict — a **disposition** recording who resolved it, when, on what information, and what they were told was at stake (`FR-080`, `INV-057`). |
+| `FR-2040` | A disposition is **append-only and sealed into the tenant chain** (`FR-512`, `INV-104`). Reversing a disposition is a further disposition referencing it; both remain visible in every export, on the same terms as a correction (`FR-505`). |
+
+#### 6.15.3 The capture loop and its throughput
+
+No seconds-per-worker budget is imposed: **identity assurance is never traded for speed**, and a
+large crew is served by more operators rather than by a thinner ceremony. What is required is that
+the loop wastes nothing that is not verification, and that the client can size the gate before the
+shift rather than after it.
+
+| ID | Requirement |
+|---|---|
+| `FR-2060` | Capture is a **continuous flow**. Between one worker and the next the application returns to the capture surface and to nothing else — no menu, no list, no confirmation dismissal. |
+| `FR-2061` | A worker whose verification does not succeed is **set aside into a *pendientes* lane and the queue advances immediately**. They are never worked through in front of the queue: it stalls the gate and it puts a person's difficulty in front of an audience. |
+| `FR-2062` | The *pendientes* lane is worked after the queue, is visible with its count throughout, and cannot be silently abandoned. Ending a session with entries still in it requires a *desviación* naming each (`FR-1330`). |
+| `FR-2063` | A mid-flow interruption — an unenrolled worker, a *desviación* to register, a battery warning, an incoming call, an app restart — **suspends and resumes without losing the queue position or a partially captured record**. |
+| `FR-2064` | The application **measures elapsed time per capture** — presentation to confirmation, broken down by the step that consumed it — and reports it as non-personal operational telemetry (`NFR-605`, `NFR-1100`). Without measurement the sizing advice in `FR-2065` is a guess. |
+| `FR-2065` | NEO publishes a **capture staffing suggestion**: for a crew size, a channel and a site, the number of operators and devices and the estimated elapsed range, computed from that company's own measured timings where they exist and from published defaults otherwise. It is advice and nothing enforces it (`FR-080`). |
+| `FR-2066` | Several devices may capture at one *centro de trabajo* at the same time. **No device coordinates with another**, none needs to be aware of another, and reconciliation happens at sync — a gate whose throughput depends on two devices agreeing offline is a gate that stops when one of them fails. |
+| `FR-2067` | Two *checadas* for one worker in the same direction inside a configured window are **surfaced at sync as a possible duplicate** — to the supervisor and to RH, never merged and never discarded (`FR-081`). The window is configuration. |
+| `FR-2068` | Where both fall on the **same device**, the operator is asked at that moment, in plain terms — a mistake, or a genuine re-entry — and the answer is recorded with the record. A person who can be asked is always asked; the sync-time review of `FR-2067` exists for the case where nobody can be. |
+| `FR-2069` | **No verification step is removed, shortened or made optional to improve throughput.** Throughput is won by parallelism and by deleting steps that are not verification. |
+
+#### 6.15.4 Exceptions at the gate
+
+| ID | Requirement |
+|---|---|
+| `FR-2090` | A person present with **no open `RELACION_LABORAL`** — given *baja*, never hired, or hired at another company — is captured as a ***presence record***: whatever factors succeed, its own class, attributed to the `EMPLEADO` where identity resolves and to a declared identity otherwise. It is **not a *jornada***, is not counted in *incidencias*, and is not billable (`OQ-078`). It is routed to RH, and becomes a *jornada* only if a rehire or a *baja* correction is confirmed (`FR-1354`). Nobody is turned away, and no employment relationship is manufactured for someone who does not have one. |
+| `FR-2091` | A condition that resolves **after** capture — attestation (`FR-1481`), a stale or expired capability (`FR-1422`), a capture outside cached scope (`FR-1425`), an unattested browser context (`FR-488`) — contributes a **permanent disclosed flag and never a record class**. The class is fixed at capture from the factors collected there (`FR-411`), and a class that moved after sealing would violate `INV-012`. |
+| `FR-2092` | An **unattended channel** that collects no successful worker-bound factor produces an `AUTODECLARADO` record and a **platform-raised *desviación*** routed to that channel's *responsable* for confirmation. Without this a worker at a kiosk who declines biometrics and forgets their secret cannot be recorded at all, which no other path in this document permits. |
+| `FR-2093` | Every unattended capture channel — kiosk, self-service, third-party terminal — **names a *responsable* at enrolment**, defaulting to the company Admin. Its exceptions, its *desviaciones* and its alerts route there. A queue addressed to a role rather than to a person is a queue nobody works. |
+| `FR-2094` | The worker-facing confirmation states **success or failure unmistakably without requiring reading** (`FR-014`) and states **nothing** about record class, integrity flags or conflicts. The worker sees their own period, in full, when they sign the *lista* (`FR-2192`); the gate is not where a record is contested. |
+
+**The active *incapacidad* sequence.** The hardest flow in the product, and the only one where NEO
+directs an operational action rather than reporting a discrepancy (`FR-1376`).
+
+| ID | Requirement |
+|---|---|
+| `FR-2095` | A company holds a versioned ***instrucción permanente***, **authored by the *patrón* in its own words**, which the application caches offline and displays **verbatim** when an active *incapacidad* conflict arises and verification cannot be obtained. This is how a site with no signal gets a default without NEO ever authoring one (§2.3a). |
+| `FR-2096` | The application presents the *incapacidad*'s **type, dates and source**, the verification attempts made and their outcome, and what is at stake in **both** directions — the exposure of a worker on site under a medical certificate, and the day's pay a healthy worker loses if the record is wrong. **NEO recommends nothing** (`FR-080`). |
+| `FR-2097` | Where connectivity allows, the verification request is **routed through NEO** and the request, the responder, the answer and the elapsed time are recorded (`FR-1380`). Where it does not, the attempts are recorded — who was contacted, by what means, at what time, with what result — and the decision is marked **unverified**, which is never presented as verified. |
+| `FR-2098` | The *desviación* records the **whole timeline as a sequence**: check-in, verification requested, verification answered, decision, check-out (`FR-1377`). Both the sequence and the elapsed total are surfaced, because a check-out minutes after a check-in with a recorded cause reads as a *patrón* who acted, and the same interval with nothing in it reads as a shift worked. |
+| `FR-2099` | Where neither outcome of `FR-1379` is reached within the configured interval, the *desviación* **remains open and escalating** (`FR-1338`, `FR-1378`) and the device keeps prompting. It is never closed by elapsed time (`FR-081`). |
+
+**The expected/observed conflict.**
+
+| ID | Requirement |
+|---|---|
+| `FR-2100` | A conflict has the states **raised** (at capture, both statements kept), **verification requested**, **verified**, **disposed**, and the failure state **unresolved and escalating**. It is raised by the capture, never by a report, and it is disposed only by a named human of the *patrón* (`FR-080`). |
+| `FR-2101` | A conflict is **never closed by the *periodo* closing, by a report being generated, or by the underlying day passing**. An unresolved conflict crosses the *periodo* boundary intact and is disclosed on every artifact covering it (`FR-1368`). |
+
+#### 6.15.5 *Desviaciones* and witnessing
+
+| ID | Requirement |
+|---|---|
+| `FR-2130` | Every *desviación* carries a **witness block**: who witnessed the circumstance, in what **mode** — present in person, the nearest superior in the organisational chart, a colleague, or a *responsable* contacted remotely — and what evidence supports it. `ATESTIGUADO` stops meaning *somebody asserted this* and starts carrying an account of itself. |
+| `FR-2131` | **One *desviación* explains many *checadas*.** It is registered once for a circumstance — a broken phone, a site with no device, an evacuation — with its cause and its evidence, and linked to every record it explains (`INV-016`). |
+| `FR-2132` | The link between a *desviación* and the records it explains is established **within the capture session, or at sync where the platform raised it** — never as a precondition of capture. A supervisor cannot document an event before it happens, and a form standing between a queue of workers and their records is how a crew ends up unrecorded. |
+| `FR-2133` | A witness **may be a named `EMPLEADO` who holds no user account**. Their identity is recorded as a person, and their signature is captured on the device (`FR-1336`) or on the printed *lista* (`FR-2192`). This is how an *acta* is signed on site and it should not require a licence. |
+| `FR-2134` | **Remote witnessing** is supported: the *responsable* is contacted, and evidence of the contact — a screenshot, a photograph, a recording — is attached to the *desviación*, hashed and sealed on the terms of `FR-1335`. What is acceptable evidence is `OQ-073`. |
+| `FR-2135` | Registering a *desviación* is **never a precondition of a capture** and never blocks one (`FR-1331`). |
+
+#### 6.15.6 Corrections, approval, and who may settle what
+
+| ID | Requirement |
+|---|---|
+| `FR-2160` | A correction request has the states **drafted**, **submitted**, **approved**, **rejected**, **withdrawn**, and the failure state **stale** — submitted and unactioned beyond a configured interval, which escalates (`FR-812`) and is never resolved by elapsed time. |
+| `FR-2161` | Where a company holds **exactly one principal with the approving permission**, that principal may approve their own request. The record is marked **self-approved**, the condition is disclosed on the *lista de asistencia* and in every export, and it raises an alert to the Admin each time. Requiring a second seat would let an entitlement boundary block a statutory correction, which `FR-935` forbids in every other place it could happen. |
+| `FR-2162` | **A supervisor settles facts and proposes consequences.** They settle directly: which *centro de trabajo* a worker is at, that a *desviación* occurred, that a second *checada* was a mistake or a re-entry, that a worker was present. They propose, for a principal holding the disposing permission: a reclassification that consumes an entitlement or moves money (`FR-1367`), an operational *baja* (`FR-2008`), an absence exception, a duplicate resolution. `FR-080` is a rule about consequences for a worker, not about speed. |
+| `FR-2163` | A correction requested offline is **queued on the device and submitted at sync**, carrying the time it was raised as well as the time it arrived, so the delay is visible rather than absorbed (`FR-1369`). |
+| `FR-2164` | A correction approved against a *periodo* already closed or a *lista* already sealed produces a **reissued *lista*** (`FR-526`) and a **delta** to the *incidencias* report (`FR-727`). It never alters an artifact already handed over. |
+
+#### 6.15.7 The signed *lista de asistencia* cycle
+
+The evidentiary document of the *periodo*, produced **in addition to** the electronic signature
+model of `FR-522`, not instead of it (`OQ-026`).
+
+| ID | Requirement |
+|---|---|
+| `FR-2190` | At *periodo* close the platform composes the *lista* (`FR-520`) and issues it for signature. The cycle is **composed → issued → printed → autographed → digitised → sealed**, and every state is visible with its age. |
+| `FR-2191` | A *lista* issued while any device covering its scope still holds **unsynced records** is marked **provisional** and says so on its face. Sealing a document that is missing records it should attest to is worse than issuing it late (`INV-014`). |
+| `FR-2192` | The printed document carries its **document hash and verification reference** (`FR-702`), one row per worker per day with the recorded times, the *jornada* they compose, the record class, the integrity flags, the *desviaciones* and the *incidencias*, **and no monetary amount of any kind** (`FR-723`). What the worker accepts is the attendance record their payment is computed from, not an amount. |
+| `FR-2193` | **Each worker autographs their own row.** A row left unsigned is a stated fact on the document, never a blank. |
+| `FR-2194` | A **discrepancy written on the document** by the worker, countersigned by the worker and the supervisor, is a first-class object on upload: it is transcribed, bound to the rows it disputes, routed as a correction request (`FR-502`), and retained with the scanned page it came from. It is the worker's own voice in the record and the thing a tribunal looks for. |
+| `FR-2195` | The digitised document is uploaded, hashed, bound to **exactly one version** of the electronic *lista* (`INV-112`), sealed into the tenant chain and included in the next external anchor, on the terms of `FR-1335`. |
+| `FR-2196` | **A worker declining to autograph is a recorded fact and not an exposure.** The electronic record remains fully attributable through the factor, the device key and the recorded consent (`FR-522`), so the refusal is noted on the document with its reason where one is given, and nothing escalates. |
+| `FR-2197` | A worker who is absent for the whole signing session, has left the company, or cannot be present has their row marked accordingly with the reason. It is never signed by anyone else. |
+| `FR-2198` | The *incidencias* hand-off to payroll **does not wait for the digitised document** (`FR-728`). Payroll runs on its own rhythm; the signed *lista* is evidence, not a gate, and anything the signing turns up arrives as a delta (`FR-727`). |
+| `FR-2199` | A *lista* issued and not digitised within a configured interval **escalates and breaches** (`FR-814`), because without the paper there is nothing to show an inspector. This is the failure state of the cycle, and it is the only one that escalates. |
+
+#### 6.15.8 Queues and hand-offs
+
+Every review queue in this system shares one model, because a queue with two hundred items in it
+fails the same way regardless of what it holds.
+
+| ID | Requirement |
+|---|---|
+| `FR-2230` | Every queue item has a **named owner** resolved at the moment it is raised — a person, never only a role (`INV-113`) — the age of the item, the deadline it protects where it has one, and what happens if nobody acts. |
+| `FR-2231` | Every queue item states **what the reviewer must decide and what each option causes**, in the reviewer's own language, before they decide it. |
+| `FR-2232` | A queue is **orderable by age, by deadline proximity and by severity**, and defaults to the order in which items breach. Its default order is never arrival order, because arrival order buries the item that matters. |
+| `FR-2233` | Items are **groupable by their common cause** — one IDSE file, one *obra*, one *desviación*, one bulk load — and a group may be disposed of in one reviewed action where every member takes the same decision, with per-item override. `FR-220` is this pattern applied once already. |
+| `FR-2234` | **No queue item is ever resolved by elapsed time** (`FR-081`). Unworked items escalate, and a queue that has been abandoned is itself an alert (`FR-825` generalised). |
+| `FR-2235` | Disposing of a queue item records the actor, the time, the decision, the reason in their own words, and the information they were shown when they made it. |
+| `FR-2236` | Where a queue item is disposed of and the underlying condition recurs, a **new item is raised referencing the prior disposition** rather than reopening it, so the sequence of decisions stays legible. |
+
+#### 6.15.9 Alerting where the recipient is offline
+
+| ID | Requirement |
+|---|---|
+| `FR-2270` | An alert rule declares whether it is **evaluated on the platform or on the device**. Rules whose only actionable recipient is a supervisor in the field — missing check-out (`FR-830`), unauthorised overtime accruing (`FR-831`), an unresolved *incapacidad* verification (`FR-1378`) — are evaluated **on the device, offline**, on the mechanism `FR-1303` already uses for reminders. An alert that requires a network to reach the one person who can act is an alert that does not fire. |
+| `FR-2271` | The escalation ladder distinguishes **unacknowledged** from **undeliverable**. A recipient whose device has not been in contact has not ignored anything, and a site that is legitimately dark must not breach for being dark (`A-009`). Undeliverable alerts escalate **to a reachable recipient** rather than counting against the unreachable one. |
+| `FR-2272` | Alert state is not a mutable row. Every transition is an **audit entry** (`FR-817`), audit entries are sealed into the tenant chain (`FR-1465`), and the current state is derived from them. This is what makes `FR-814`'s *recorded permanently* true rather than aspirational. |
+| `FR-2273` | **Declared/observed location mismatch.** A capture session whose declared *centro de trabajo* disagrees with its position evidence (`FR-2002`) raises a review item presenting both readings. Routed to the supervisor's superior and to Admin, never to the supervisor being reviewed. |
+| `FR-2274` | **Queue abandoned.** Any review queue with items older than a configured age and no disposition activity raises an alert to the owner's superior, because an unworked queue is indistinguishable from an unnoticed one. |
+
+#### 6.15.10 Employment identity: *CURP*, *NSS* and duplicates
+
+| ID | Requirement |
+|---|---|
+| `FR-2300` | An employee's ***NSS* is a collection**, each entry effective-dated and carrying its provenance — supplied at enrolment, or discovered by attaching an unmatched *movimiento* (`FR-2382`). One person may hold two or three; the practice is less common than it was and its history is still in the workforce. |
+| `FR-2301` | Every question about IMSS affiliation, exposure and the *altas* export is answered over the **union of the person's *NSS***, never over one of them (`FR-611`, `FR-615`). An exposure computed against one number while the *alta* was filed under another is a false alarm, and false alarms are how a compliance product teaches its users to ignore it. |
+| `FR-2302` | The **declared-identity tier** (`FR-341`) — a name and a photograph, no document — is a legitimate state and never blocks capture. It declares what it blocks downstream in the terms of `FR-342`, and it is the tier that makes `FR-2303` load-bearing. |
+| `FR-2303` | Duplicate detection is **conclusive on a document and proposing otherwise**: a matching *CURP* or a matching *NSS* is proof of the same person (`INV-101`); a matching normalised name and date of birth is a candidate a human resolves by comparing the two enrolment photographs. A *differing NSS* is never evidence of a different person, because one person may hold several. |
+| `FR-2304` | Field enrolment **asks for a photograph of the identity document** even where the worker has no papers to hand and no field can be filled from it. That photograph is what resolves the identity weeks later when a second enrolment appears. |
+| `FR-2305` | Resolving a duplicate **merges histories and never deletes a record**: the surviving `EMPLEADO` acquires the other's *relaciones laborales*, *checadas*, documents and *NSS* values, and the superseded identity remains readable pointing at the survivor (`FR-501`, `INV-028`). |
+
+#### 6.15.11 The *obra*: two windows, one checklist each
+
+| ID | Requirement |
+|---|---|
+| `FR-2340` | ***Frentes* and *cuadrillas* organise supervision; the *obra* carries the compliance.** A *centro de trabajo* of a subdividing type holds no *registro patronal*, no SIROC folio and no *fecha de inicio físico* — those live on the *obra* above it (`FR-217`, `FR-221`, `FR-225`), and every *checada* records both the *obra*, for compliance, and the organisational node, for supervision. |
+| `FR-2341` | The **opening window** is presented as one checklist rooted at the *registro patronal* (`FR-226`, `FR-840`), with each dependent item showing its own state and naming the item it waits on. An item that cannot yet be acted on is shown as blocked rather than as overdue. |
+| `FR-2342` | The **closing cascade** (`FR-227`, `FR-228`) is one checklist with the same shape: operational *bajas*, then the IMSS *bajas* for every person registered under the *obra*, then the SIROC closure, each listing exactly who or what remains outstanding by name. |
+| `FR-2343` | Completing a *centro de trabajo* is **reversible before the cascade begins and irreversible after**, because a completion that has already produced *bajas* cannot be undone by un-ticking a box. Reversal before that point is an audited act with a reason. |
+| `FR-2344` | Neither window ever blocks hiring, capture or payment of attention to a worker (`INV-056`, `FR-339`). A window is a set of obligations with clocks, not a gate. |
+
+#### 6.15.12 IMSS ingestion as a worked queue
+
+| ID | Requirement |
+|---|---|
+| `FR-2380` | Extraction captures the ***tipo de jornada* or *semana* declared on an *alta*** where the layout carries it (`FR-604`, `FR-621`), because it is the *patrón*'s own declaration of the shift the worker is on and it is the seed and the cross-check for `FR-2034`. |
+| `FR-2381` | *Movimiento*-level idempotency: a *movimiento* is identified by **its *NSS*, its type, its *fecha de movimiento* and its *registro patronal***, and an equivalent already held is recognised as the same event arriving again rather than as a second one — whatever file it came in (`FR-610`). |
+| `FR-2382` | An **unmatched *NSS*** is a queue item with three dispositions: attach it to an existing employee as a further *NSS* (`FR-2300`); create the employee it names; or hold it as belonging to somebody not in NEO. Attaching is the ordinary case and is how a second number enters the record. |
+| `FR-2383` | A ***movimiento rechazado*** is resolved only by **an ingested *movimiento* that cures it** — the same worker, the same type, accepted — or by an explicit recorded reason. The link between the rejection and its cure is stored, so `FR-833` has a defined resolution condition and does not rely on somebody remembering. |
+| `FR-2384` | A constancia **held** under `FR-646` states which check failed, for which `Patrón` block, and offers the reviewer the path that clears it. Nothing in it is committed while it is held, and a partial commit is never available. |
+| `FR-2385` | `FR-808` is silent for a configurable **transfer window** during which concurrent registration under two *registros patronales* is the expected consequence of the five-*día hábil* rule, and speaks when the overlap outlives it. |
+
+#### 6.15.13 Erasure, retention and archival
+
+Decided in ADR-0015. The problem: `FR-1104` and `FR-1111` promise that data is destroyed when its
+window lapses, and `FR-501`, `INV-012` and `FR-1458` guarantee that no `UPDATE` or `DELETE` path
+exists against an evidentiary record in any environment.
+
+| ID | Requirement |
+|---|---|
+| `FR-2410` | The **integrity chain is a structure of its own**, and evidentiary rows reference it rather than carrying it. A hash whose row is absent is therefore a **detected gap** rather than an invisible one — which is what makes a direct deletion by a database administrator observable (`NFR-943`). |
+| `FR-2411` | Personal fields on evidentiary records are encrypted under a **per-worker key**, held outside the row it protects (`FR-1488`). |
+| `FR-2412` | **Erasure destroys that key and nothing else.** The row is untouched, its hash still matches, the chain still verifies, and the data is unrecoverable. It is the only erasure that needs neither an `UPDATE` nor a `DELETE` (`INV-107`), and therefore the only one compatible with the invariant the product's central claim rests on. |
+| `FR-2413` | Erasure is an **audited, attributable act** recording what was erased, under which obligation, on whose authority and when, and the record that it occurred survives the data it erased (`FR-1103`). |
+| `FR-2414` | A **legal hold** (`FR-1112`) suspends key destruction. A key under hold is not destroyed on any schedule and the hold is visible on every artifact covering the held period. |
+| `FR-2415` | **Archival is not erasure.** Moving a period's records to separate storage carries its **chain segment, its roots and its external timestamp tokens with it**, and a verification bundle over an archived period is producible without rehydrating anything else (`FR-533`). A claim about 2027 arrives in 2032, which is exactly why the retention exists. |
+
+#### 6.15.14 Onboarding, support and degradation
+
+| ID | Requirement |
+|---|---|
+| `FR-2440` | Company onboarding completes to a **first capture on the same day** with defaults for every configuration (`UJ-01`), and the items that cannot be defaulted — fiscal identity (`FR-962`), the *registro patronal* registry, the consent and *aviso* texts — are presented as a checklist with what each one blocks. |
+| `FR-2441` | **Enrolment at scale is a supervised campaign, not a queue of individual actions**: a target population, a progress figure, who has been enrolled and who has not, resumable across days and devices, and working entirely offline (`FR-334`). Several hundred faces at a site with no connectivity is the riskiest week of a deployment. |
+| `FR-2442` | Delinquency degrades **administrative and export surfaces only** (`FR-944`). Capture, sync, sealing and anchoring continue untouched, and the client is told precisely which surfaces are affected and which are not. |
+| `FR-2443` | A degraded surface states **why** it is degraded and what clears it. A surface that is merely missing teaches the user the product is broken. |
+
+#### 6.15.15 Device fleet operations
+
+| ID | Requirement |
+|---|---|
+| `FR-2470` | The cached roster, expected state and templates belong to the **device's company**, not to its operator, and survive an operator change (`FR-1430`). They are readable only under a valid capability whose scope reaches the worker, so no scope is inherited and no offline shift is left unable to identify anybody. |
+| `FR-2471` | Device operational state — **enrolled, active, unsynced, stale, purged, revoked** — is visible to the Admin with the age of each condition (`FR-1486`), and *unsynced* carries the count and the age of the oldest record it holds (`NFR-405`). |
+| `FR-2472` | A **lost or stolen device** is revoked immediately, and the Admin is shown at that moment the size of the residual exposure: the device's last contact, the records believed to be on it and unsynced, and the fact that revocation cannot reach it until it connects (`FR-1429`). |
+| `FR-2473` | Records still on a lost device are **not written off**. They are enumerated as expected-but-unreceived, the affected days are marked on the *lista de asistencia* covering them, and the gap is closed by a *desviación* with whatever the supervisor can attest — never by pretending the days did not happen. |
+#### 6.15.16 The work pattern and its assignment
+
+Source: `OQ-039`, resolved 2026-08-20. The pattern is modelled **independently of whoever uses it**,
+and is then assigned. That separation is the decision; everything below follows from it.
+
+| ID | Requirement |
+|---|---|
+| `FR-2500` | **The work pattern is a first-class object, independent of any employee, crew or *centro de trabajo*.** A ***ciclo de turno*** holds a name, a cycle definition and the shift each of its working days carries, and it exists whether or not anything is assigned to it. One *12x12* is defined once and used by every crew that runs it. |
+| `FR-2501` | A cycle is expressed as ***n* working days followed by *m* rest days**, or as a fixed weekly pattern — **never as an enumeration of dates**. `12x12`, `6x1`, `4x3` and Monday-to-Saturday are the same object with different values, which is what lets a rotation be described without writing a calendar. |
+| `FR-2502` | Each **position in the cycle** carries its expected start, expected end, expected break windows and its *jornada* type — *diurna*, *nocturna* or *mixta*. A rotation that alternates day and night shifts expresses that per position rather than needing two objects. |
+| `FR-2503` | **An assignment binds a cycle to a subject, with effective dates and an anchor date.** The subject is an employee, an organisational node — a *cuadrilla* or a *frente* — or a *centro de trabajo*. **The anchor is the cycle's day zero and belongs to the assignment, not to the cycle**, so two crews running the same *12x12* offset by six days are two assignments of one object rather than two objects. |
+| `FR-2504` | Resolution is **most specific wins**: an employee assignment overrides an organisational-node assignment, which overrides a *centro de trabajo* assignment, which overrides the company default. **The level that supplied the answer is recorded with it**, so a reader can tell whether somebody is on their crew's rotation or on an individual arrangement (`INV-114`). |
+| `FR-2505` | Expected state resolves **per *centro de trabajo***. An employee assigned to two concurrently (`FR-206`) is expected at one of them on a given day and appears on one roster, rather than being counted absent at both (`FR-1350`, `FR-1352`, `FR-1366`). |
+| `FR-2506` | Resolution is answerable **for any past date** (§7.2). Changing an assignment never alters what was expected on a date already passed, on the same terms as every other temporal fact in this system. |
+| `FR-2507` | A worker moving between crews mid-cycle **end-dates the old assignment and begins a new one on its own effective date, under the receiving crew's anchor**. Nothing is re-anchored to the person, and the move is visible as two assignments rather than as one edited row. |
+| `FR-2508` | The device caches **the cycle and its assignment**, not an enumerated calendar, and resolves expected state locally for any date (`FR-1363`). An enumerated calendar has a horizon and a device dark past it stops knowing who is expected — which is precisely the site this product exists for. |
+| `FR-2509` | A cycle is **versioned and never edited in place** once any assignment referencing it covers a past date. Changing a rotation issues a new version and a new assignment; days already classified stay classified under what was in force (`FR-072`, `FR-073`). |
+| `FR-2510` | **The cycle says which days this crew works; the rule set says which days are statutory and what the limits are** (`FR-071`). Neither is derived from the other. A cycle placing a working day on a *día de descanso obligatorio* is **not a conflict** — it is time to be classified correctly (`FR-1366`, `FR-724`). |
+| `FR-2511` | A subject with **no assignment at any level has no expected state**, which is a legitimate condition and not an error. Observed time is reported with expected unstated, and **no *falta* is inferred**. Inferring absence from a missing pattern would manufacture a *falta* out of a configuration gap. |
+| `FR-2512` | Cycles and rule sets (`FR-077`) are assigned on the **same subject axis** and resolved by the same most-specific-wins rule, so a crew's rotation and the rules that classify it can never be assigned to different populations. A *12x12* cycle on the crew with the statutory default rule set on its members would classify every shift as four hours of overtime. |
+| `FR-2513` | A non-default cycle records the declared legal basis of `FR-078` **on the assignment rather than on the cycle**, because the same rotation may rest on a *contrato colectivo* for one crew and have nothing behind it for another. |
 
 ---
 
@@ -1507,7 +1753,8 @@ erDiagram
     EMPLEADO ||--o{ CONTRATO : "signed"
     EMPLEADO ||--o{ CONSENTIMIENTO : "granted"
     EMPLEADO ||--o{ PLANTILLA_BIOMETRICA : "enrolled"
-    EMPLEADO ||--o{ JORNADA : "records"
+    EMPLEADO ||--o{ CHECADA : "clocks"
+    EMPLEADO ||--o{ JORNADA : "works"
     EMPLEADO ||--o{ MOVIMIENTO : "filed for"
 
     ASIGNACION_CENTRO }o--|| CENTRO_TRABAJO : "at"
@@ -1521,18 +1768,23 @@ erDiagram
     MOVIMIENTO_RECHAZADO }o--|| REGISTRO_PATRONAL : "attempted under"
     ARCHIVO_ALTA_RP ||--|| REGISTRO_PATRONAL : "evidences"
 
-    JORNADA ||--o{ JORNADA : "corrected by"
-    JORNADA }o--|| DISPOSITIVO : "captured on"
-    JORNADA }o--|| CANAL_CAPTURA : "via"
+    JORNADA ||--o{ CHECADA : "composed of"
+    CHECADA ||--o{ CHECADA : "corrected by"
+    CHECADA }o--|| DISPOSITIVO : "captured on"
+    CHECADA }o--|| CANAL_CAPTURA : "via"
     LISTA_ASISTENCIA ||--o{ JORNADA : "attests"
     LISTA_ASISTENCIA ||--o{ FIRMA : "signed by"
-    JORNADA }o--o| DESVIACION : "explained by"
+    CHECADA }o--o| DESVIACION : "explained by"
     JORNADA }o--o| AUTORIZACION_HE : "authorised by"
+    DIA_EMPLEADO ||--o| DISPOSICION_DIA : "conflict disposed by"
+    DIA_EMPLEADO ||--o{ JORNADA : "observed"
     DESVIACION ||--o{ DOCUMENTO_FIRMADO : "evidenced by"
     PROYECTO ||--o{ CONTRATO : "ends on completion"
-    EMPLEADO ||--o{ PATRON_EXPECTATIVA : "expected pattern"
+    CICLO_TURNO ||--o{ ASIGNACION_CICLO : "assigned by"
+    EMPLEADO ||--o{ ASIGNACION_CICLO : "may hold directly"
+    CENTRO_TRABAJO ||--o{ ASIGNACION_CICLO : "may hold for its people"
 
-    CADENA_INTEGRIDAD ||--o{ JORNADA : "seals"
+    CADENA_INTEGRIDAD ||--o{ CHECADA : "seals"
     CADENA_INTEGRIDAD ||--o{ LISTA_ASISTENCIA : "seals"
     CADENA_INTEGRIDAD ||--o{ ARCHIVO_IDSE : "seals"
     CADENA_INTEGRIDAD ||--o{ DESVIACION : "seals"
@@ -1553,7 +1805,7 @@ Three different notions of time coexist and must not be conflated.
 |---|---|---|
 | **Valid time** | When the fact was true in the world | *Asignación*, *salario*, *contrato*, *movimiento*, geofence radius, rule set version |
 | **Transaction time** | When the system learned it | Every entity, via the audit log |
-| **Capture time** | When the event was observed at the *frente* | *Jornada* only, and always accompanied by its anchored interval |
+| **Capture time** | When the event was observed at the *frente* | *Checada* only, and always accompanied by its anchored interval |
 
 Every temporal relationship is a closed-open interval `[start, end)` with `end` null while the
 fact remains in force. "What was true on date D" must be answerable for assignment, wage,
@@ -1612,11 +1864,27 @@ flowchart TD
   evidenced by an **`ARCHIVO_ALTA_RP`**. Everything that names a *registro patronal* points at this
   row rather than repeating its identifier as text (`INV-052`), which is what lets ingestion refuse
   a constancia belonging to another *patrón* (`FR-645`).
-- **`JORNADA`** is a single capture event with its class, channel, device, factors used,
-  position evidence, and time anchors. A correction is another `JORNADA` pointing at its
-  predecessor.
+- **`CHECADA`** is a single capture event — one clock punch — with its class, channel, device,
+  factors used, position evidence and time anchors. It is the evidentiary record and the thing
+  that is signed, chained and sealed. A correction is another `CHECADA` pointing at its
+  predecessor. Where a requirement written before §6.15 says *"jornada record"*, it means this
+  (`FR-2030`).
+- **`JORNADA`** is one continuous work period — the thing art. 132 fr. XXXIV obliges the *patrón*
+  to register, with its start and its end. It is composed of the *checadas* that bound it, derived
+  under the rule set in force rather than captured, and normally eight hours but twelve on a
+  *12x12*. It is the unit the *jornada máxima*, the overtime warnings and the *lista* work in.
+- **`DIA_EMPLEADO`** is the employee-day: the expected state, the observed state, and — where they
+  disagree — a `DISPOSICION_DIA` recording who resolved the conflict and how. The two statements
+  are never derived from each other and never overwritten (`FR-1360`, `INV-057`).
 - **`LISTA_ASISTENCIA`** is a sealed, versioned document that attests to a set of `JORNADA`
-  records. Reissues reference their predecessor.
+  periods and the `CHECADA` records beneath them. Reissues reference their predecessor, and a
+  digitised autographed copy binds to exactly one version of it (`INV-112`).
+- **`CICLO_TURNO`** is a work pattern held independently of anybody who uses it: a cycle of *n*
+  working days and *m* rest days, or a fixed week, with each position carrying its own shift.
+  **`ASIGNACION_CICLO`** binds one to an employee, an organisational node or a *centro de
+  trabajo*, with effective dates and the anchor that fixes the cycle's day zero (`FR-2500`,
+  `FR-2503`). Note the naming: *patrón* already means the employer throughout this document, so
+  a work pattern is a ***ciclo*** and never a *patrón*.
 - **`DISPOSITIVO`** is an enrolled capture device with its public key, attestation history and
   assigned scope.
 - **`BILLING_ACCOUNT`** sits between the plan and the company so that a *despacho* holding
@@ -1647,7 +1915,7 @@ These must hold at all times, and each is testable.
 | `INV-013` | Every sealed evidentiary object is a member of exactly one tenant chain segment, and that segment is a member of exactly one externally anchored root. |
 | `INV-014` | A *lista de asistencia* attests only to *jornada* records that existed and were sealed before the *lista* was sealed. |
 | `INV-015` | For every device, the sequence numbers received form an unbroken ascending run. A gap is an alert, never a silent accept. |
-| `INV-016` | Every `ATESTIGUADO` *jornada* record references exactly one `DESVIACION`. |
+| `INV-016` | Every `ATESTIGUADO` and every `AUTODECLARADO` record references exactly one `DESVIACION`, and one `DESVIACION` may explain many records (`FR-2131`). The reference is established within the capture session, or at sync where the platform raised it — a supervisor cannot author a *desviación* before the event it describes, and demanding one per record before capture would put a form between a queue of workers and their records (`FR-2132`). |
 | `INV-017` | Every uploaded deviation document and every overtime authorisation is sealed into the tenant chain before it is presented as evidence anywhere. |
 | `INV-020` | Opening or closing a `RELACION_LABORAL` never requires, consults, or is blocked by IMSS affiliation state. |
 | `INV-021` | An employee's `SALARIO` records for a given `RELACION_LABORAL` never overlap and never leave a gap while the relationship is open. |
@@ -1680,6 +1948,22 @@ These must hold at all times, and each is testable.
 | `INV-067` | A principal holding grants in more than one company holds no user-management and no role-management permission, under any role composition. |
 | `INV-068` | Every role definition, grant, grant revocation, device enrolment, device revocation and audit entry is sealed into the tenant chain. |
 | `INV-069` | The anchoring keys are unreachable from every code path that writes tenant data. |
+| `INV-100` | The supervisor's **daily list is not evidentiary**. No edit to it creates, alters, suppresses or reclassifies a `CHECADA`, a `JORNADA` or a disposition, and no evidentiary artifact is derived from it. |
+| `INV-101` | Within a tenant an *NSS* resolves to **at most one `EMPLEADO`**, and an `EMPLEADO` may hold **several *NSS***. A matching *NSS* is therefore proof of the same person; a differing one is proof of nothing. |
+| `INV-102` | Every `CHECADA` belongs to at most one `JORNADA`, and every `JORNADA` is composed of at least one `CHECADA`. A `JORNADA` is derived and is never captured directly. |
+| `INV-103` | Every `CHECADA` records the *centro de trabajo* declared for its capture session (`FR-2001`) and either its operator or an explicit absence of one (`FR-1476`). |
+| `INV-104` | A conflict **disposition is append-only**. Reversing one appends a further disposition referencing it, and neither statement of the employee-day is ever replaced (`INV-057`). |
+| `INV-105` | Every `ATESTIGUADO` and every `AUTODECLARADO` record resolves through a `DESVIACION` carrying a witness block (`FR-2130`). |
+| `INV-106` | A **presence record** has no `RELACION_LABORAL`, contributes nothing to the billable count, and appears in no *incidencias* report unless and until a human converts it (`FR-2090`). |
+| `INV-107` | **No erasure of personal data is performed by an `UPDATE` or a `DELETE` against an evidentiary table.** Erasure is the destruction of the key under which that person's fields were encrypted. |
+| `INV-108` | The integrity chain is stored **independently of the rows it seals**. A sealed hash whose row is absent is a detected gap, never an invisible one. |
+| `INV-109` | An archived period carries its chain segment, its roots and its external timestamp tokens with it, and remains independently verifiable. |
+| `INV-110` | A self-approved correction exists only where the company holds **exactly one** principal with the approving permission, and carries that mark wherever it appears (`FR-2161`). |
+| `INV-111` | An **open *jornada* is never closed by any automatic process** — not by a timer, not by a *periodo* closing, not by a report being produced. |
+| `INV-112` | A digitised autographed *lista* is bound to **exactly one version** of the electronic *lista*, and a version holds at most one such document (`FR-2195`). |
+| `INV-113` | Every queue item has a **named owner** — a person, not only a role — resolved at the moment it is raised (`FR-2230`). |
+| `INV-114` | For a given employee at a given *centro de trabajo* at a given instant, **at most one** cycle assignment is in force. Where several levels supply one, the most specific wins and the level that supplied it is recorded (`FR-2504`). |
+| `INV-115` | A cycle's **anchor date lives on the assignment, never on the cycle**. Two assignments of one cycle may hold different anchors (`FR-2503`). |
 
 ---
 
@@ -1769,11 +2053,12 @@ as the same thing. Record class is the mechanism.
 | `VERIFICADO_BIOMETRICO` | Worker-present biometric match with liveness passed, on an attested device. |
 | `VERIFICADO_SECRETO` | Worker-present secret entered by the worker, with a photograph captured. |
 | `VERIFICADO_DEGRADADO` | Worker-present, but a factor collected **at capture** was near-threshold or liveness was inconclusive. Attestation is deliberately not among these: it resolves at sync, after the record is sealed, so it contributes a permanent flag and never the class (`FR-1481`, `OQ-048`). |
-| `ATESTIGUADO` | Supervisor assertion with no worker-bound factor. |
+| `ATESTIGUADO` | Assertion by a present operator with no worker-bound factor, carrying its witness and its *desviación* (`FR-2130`). |
+| `AUTODECLARADO` | An unattended channel — kiosk, self-service, browser-only — where no worker-bound factor succeeded and no operator was present to attest. Carries a platform-raised *desviación* awaiting confirmation (`FR-2092`). |
 
 | ID | Requirement |
 |---|---|
-| `FR-411` | Every *jornada* record carries exactly one record class, assigned by the system from the factors actually collected. The class is never chosen by a user. |
+| `FR-411` | Every *jornada* record carries exactly one record class, assigned by the system from the factors actually collected **at capture**. The class is never chosen by a user, and never changes after the record is sealed — a condition resolved later contributes a flag (`FR-1481`, `FR-2091`). |
 | `FR-412` | A supervisor may create an `ATESTIGUADO` record — a worker's *jornada* must never go unrecorded — but it requires a reason code, and it is **visibly distinguished from verified records on the *lista de asistencia* and in every export**. |
 | `FR-413` | The proportion of `ATESTIGUADO` and `VERIFICADO_DEGRADADO` records is reported per supervisor, per site and per period, and an anomalous concentration raises a review alert. |
 | `FR-414` | Corroborating signals are recorded alongside every record and are part of the evidence envelope: device identity and attestation result, position evidence, the supervisor present, the factors attempted and their outcomes, and the liveness method version. |
@@ -1858,7 +2143,7 @@ document's evidence requirements are unreachable from a browser:
 | `FR-485` | The capture application ships inside a **native container** from v1 on Android and at v1.x on iOS. The security-critical capabilities — key storage, attestation, camera and liveness, geolocation and GNSS, monotonic clock, and record storage — are implemented as **native plugins**, not as web APIs. |
 | `FR-486` | Unsynced records and cached biometric templates live in **application-owned native storage the operating system will not evict**, never in browser-managed storage. |
 | `FR-487` | A browser-only progressive web application is a supported delivery for **online-only** surfaces: worker self-service on office networks, and kiosks with permanent connectivity where every record syncs immediately. |
-| `FR-488` | Records captured in a browser-only context lack hardware key binding and attestation and are classified accordingly (§8.5). They are never presented as equivalent to records from an attested container. |
+| `FR-488` | Records captured in a browser-only context lack hardware key binding and attestation. Where a worker-bound factor succeeded they carry its class and a permanent unattested-context flag; where none did, they are `AUTODECLARADO` (§8.5). They are never presented as equivalent to records from an attested container. |
 | `FR-489` | **The browser-only path must not be used for offline capture.** Where connectivity cannot be guaranteed, the container is required. |
 | `FR-490` | The web framework, container framework and plugin set are decided in an ADR (`OQ-033`), constrained by `FR-485`–`FR-489`. |
 
@@ -2048,6 +2333,26 @@ granted, so neither gate observes them.
 | `NFR-1018` | On a personal-data breach NEO notifies the affected *responsable* without undue delay with what is known at the time. NEO does not notify the *titular*; that duty belongs to the *responsable* (`A-010`). |
 | `NFR-1019` | NEO can produce, per tenant and per date range, the record of who accessed that tenant's personal data and under what authorisation, as evidence the *responsable* needs for its own obligations. |
 | `NFR-1020` | Compromise of the control plane is treated in the incident procedure as a platform-wide breach, because it holds every identity and every grant for every tenant. |
+
+### 9.11 Process and workflow verification
+
+Source: §6.15. The first four are performance envelopes the capture loop is designed against; the
+rest are **release gates**, on the same terms as §9.9.
+
+| ID | Requirement |
+|---|---|
+| `NFR-1100` | The capture application measures elapsed time per capture, broken down by step, and reports it as non-personal telemetry (`FR-2064`, `NFR-605`). The staffing suggestion of `FR-2065` is derived from measurement, never from an estimate. |
+| `NFR-1101` | On a device meeting the published minimum specification (`FR-480`), the capture surface returns ready for the next worker within a stated time of the previous confirmation, and that figure is measured on every release rather than assumed. |
+| `NFR-1102` | A device holding a 200-person *obra*'s roster, expected state and templates (`FR-2004`, `NFR-940`) resolves the daily list and performs a match without a perceptible pause. Roster growth degrades neither. |
+| `NFR-1103` | Every review queue remains workable at 200 items and beyond: ordering, filtering and grouping are executed server-side and paginated (`NFR-508`), never by sorting the whole set on the client. |
+| `NFR-1104` | Device-evaluated alert rules (`FR-2270`) fire within a stated period of their condition arising, with no connectivity, and their delivery and acknowledgement are recorded for upload at sync (`FR-1307`). |
+| `NFR-1105` | The offline harness (`NFR-946`, `NFR-1011`) additionally exercises: a session interrupted mid-capture; an operator handover with no connectivity; a *lista* issued while a device still holds unsynced records; a *desviación* linked to its records at sync; the same worker captured on two devices at one gate; and an *incapacidad* verification that is never answered. **Each case must end in a record.** |
+| `NFR-1106` | A test asserts that no edit to the daily list produces any change to a `CHECADA`, a `JORNADA` or a disposition (`INV-100`). |
+| `NFR-1107` | A test asserts that erasure destroys only the key, that the erased row is unchanged, and that **chain verification over the erased period still succeeds** (`INV-107`, `FR-2412`). |
+| `NFR-1108` | A test asserts that a sealed hash whose row has been removed directly in the database is **detected** (`INV-108`), alongside the mutation case in `NFR-943`. |
+| `NFR-1109` | A test asserts that a verification bundle over an **archived** period is producible from the archive alone (`INV-109`, `FR-2415`). |
+| `NFR-1110` | A test asserts that an **undeliverable** alert escalates to a reachable recipient and does not breach against the unreachable one (`FR-2271`). |
+| `NFR-1111` | A test asserts that a device offline for longer than any plausible cached-calendar horizon still resolves expected state for the current date from the cycle and its anchor (`FR-2508`), and that the resolution matches the platform's for the same date. |
 
 ---
 
@@ -2263,6 +2568,14 @@ crew per day and adds no attribution the check-in event does not already carry; 
 non-starter — it requires each worker to hold a SAT-issued certificate.
 **Recommendation: (a)**, revisited if counsel under `OQ-001` says a Mexican tribunal will
 materially discount a *lista* without manuscript signatures.
+→ **RESOLVED 2026-08-20: (a) and (b) together, because they do different jobs.** The authenticated
+check-in already is the worker's signature and carries the evidentiary weight on its own
+(`FR-522`); the printed, autographed, digitised *lista* is produced **as well**, because it is the
+artifact an inspector expects to be shown and what supports a remote audit (`FR-523`, `FR-524`,
+`FR-2190`–`FR-2199`). The consequence that matters operationally: **a worker declining to autograph
+is benign**, not an exposure — the refusal is recorded on the document as a fact and the electronic
+record stands untouched (`FR-2196`). What escalates is the digitised document never arriving
+(`FR-2199`).
 
 ### IMSS and payroll hand-off
 
@@ -2529,6 +2842,24 @@ crews mid-cycle. (c) expresses rotation directly and is the only one of the thre
 inherited, with per-employee override for the exceptions. Confirm against a real roster from the
 first construction client before building it; the shapes that exist in practice are the whole
 question here.
+→ **RESOLVED 2026-08-20: (c) as the model, (a) as the assignment — and the two are separable because
+the pattern is modelled independently of whoever uses it.** A ***ciclo de turno*** is a first-class
+object holding the rotation and nothing else; an assignment binds it to an employee, an
+organisational node or a *centro de trabajo*, with effective dates and its own anchor, resolved most
+specific first. §6.15.16 specifies it (`FR-2500`–`FR-2513`, `INV-114`, `INV-115`).
+
+Three consequences the framing produces that neither (a) nor (c) alone would. The **anchor lives on
+the assignment**, so two crews on the same *12x12* offset by six days are two assignments of one
+object rather than two near-identical objects that will drift. A worker moving crews mid-cycle
+**end-dates one assignment and begins another** under the receiving crew's anchor, so the move is
+visible as two facts instead of one edited row. And because a cycle is a rule rather than a
+calendar, **a device resolves expected state for any date offline** (`FR-2508`) — an enumerated
+calendar has a horizon, and a device dark past it stops knowing who is expected, which is exactly
+the site this product exists for.
+
+**Still worth confirming against a real roster** from the first construction client: which cycle
+shapes actually occur, and whether any of them needs a shift that differs by position in the cycle
+(`FR-2502`) rather than one shift for the whole rotation.
 
 **`OQ-038` — CFDI issuance timing, tax composition, and cancellation.**
 Three connected questions that only matter once invoicing is real, and all three change what the
@@ -2730,6 +3061,103 @@ Neither at v1.
 finder reporting a tenant-isolation bug to NEO and reporting it to a client. (b) is not fundable
 at launch revenue (`NFR-901`) and (c) means the report goes somewhere else.
 
+### Process and workflows
+
+Source: §6.15; the process and workflows session, 2026-08-20.
+
+**`OQ-070` — Does *jornada máxima* count elapsed time or worked time?**
+(a) Elapsed from the opening *checada*, so a long break counts against the maximum. (b) The sum of
+worked intervals with breaks excluded.
+*Trade-off:* it decides when `FR-1302` warns and when `FR-831` fires, and getting it wrong in the
+worker's disfavour produces warnings people learn to dismiss. For a *jornada continua* the rest
+period is generally treated as working time and for a *jornada discontinua* it generally is not, so
+the answer may legitimately differ per arrangement.
+**Recommendation:** make it a named rule-set parameter (`FR-2032`) rather than a single answer,
+default to (a) for a *jornada continua* and (b) where a company declares a *jornada discontinua*,
+and confirm both readings under `OQ-001`.
+
+**`OQ-071` — What is the default *jornada* split threshold?**
+(a) Four hours — a gap longer than that starts a new *jornada*. (b) Two hours. (c) No default; every
+company must set it.
+*Trade-off:* too short and a long comida splits one shift into two, understating a *jornada* against
+its maximum; too long and a genuine second shift is absorbed into the first, hiding overtime. (c) is
+honest and makes onboarding fail on a question nobody at the client can answer on day one.
+**Recommendation: (a)**, confirmed against a real roster from the first construction client.
+
+**`OQ-072` — How long is the supervisor's daily list retained?**
+(a) Not retained beyond the *periodo* it belongs to; it is a working tool and its content is fully
+reconstructible from expected state and the records (`FR-2009`). (b) Retained with the *periodo* as
+an operational artifact.
+*Trade-off:* (b) makes a supervisor's working edits reviewable, which is useful for the practice
+questions in `FR-1370` — and it also invites the list being read as evidence, which `INV-100` says
+it is not.
+**Recommendation: (a)**, with the *edits themselves* retained as audit entries, which gives the
+review value without creating a second attendance document.
+
+**`OQ-073` — What evidence is acceptable for a remote witness?**
+(a) Any artifact the witness or the operator can produce — a call screenshot, a photograph, a voice
+note — attached, hashed and sealed, with its type recorded and its weight left to the reader.
+(b) An enumerated list of acceptable evidence types, refusing anything else.
+*Trade-off:* (b) is tidier and will refuse the one thing somebody actually had at a site with no
+signal. (a) risks a *desviación* whose evidence a *perito* discounts — but a discounted artifact is
+worth more than a missing one.
+**Recommendation: (a).** Confirm under `OQ-001` whether any specific form carries more weight in a
+*tribunal laboral*, and if so surface that as guidance rather than as a restriction.
+
+**`OQ-074` — How wide is the duplicate-*checada* window?**
+(a) A configurable window defaulting to five minutes, applied per worker per direction. (b) Per
+*jornada*: any second *checada* in the same direction within one *jornada* is a candidate.
+*Trade-off:* (b) catches more and will flag legitimate re-entries at sites where workers come and go;
+(a) misses a duplicate produced an hour apart on two devices.
+**Recommendation: (a)**, with the figure reviewed against real data from the first *obra* — this is a
+number that should be measured rather than argued.
+
+**`OQ-075` — How long may an issued *lista* remain undigitised before it breaches?**
+(a) One *periodo* — the paper for week one must be back before week two closes. (b) A fixed number of
+*días hábiles* configured per company.
+*Trade-off:* (a) is self-pacing and matches the rhythm the client already runs on; (b) is more precise
+and adds a number to configure at onboarding.
+**Recommendation: (a)**, escalating at half the *periodo* and breaching at its close (`FR-2199`).
+
+**`OQ-076` — May a device hold more than one *obra*'s roster?**
+`FR-2004` caches the whole *obra*. A device that moves between *obras* — common where a supervisor
+runs two small sites — would need both.
+(a) Yes, bounded by the device envelope (`NFR-940`), with each session declaring which *obra* it is
+at. (b) One *obra* per device, re-scoped explicitly when it moves.
+*Trade-off:* (b) is simpler and strands a supervisor who moves between sites in a day; (a) costs
+storage and makes the declaration in `FR-2001` load-bearing.
+**Recommendation: (a)**, with the envelope stated and the operator warned before it is exhausted.
+
+**`OQ-077` — Does a presence record become billable if the rehire is confirmed?**
+(a) The relationship opens on the rehire date decided by RH, and the presence record stays outside
+billing (`INV-106`). (b) It opens on the presence date, so the day the person actually worked is
+billed and paid.
+*Trade-off:* (b) matches what happened and lets an honest correction restore a day's pay; (a) is
+simpler and can leave a genuinely worked day outside the record that produces payment.
+**Recommendation: (b) where RH backdates the rehire**, which they can already do, with (a) as the
+default when they do not. Nothing here is decided by the system (`FR-080`).
+
+**`OQ-078` — Is a presence record ever billable in its own right?**
+(a) No: it is not an employment relationship and metering counts relationships (`FR-930`, `INV-106`).
+(b) Yes: the client used NEO to record a person, which is the same argument `FR-931` makes for an
+employee filed but never seen.
+**Recommendation: (a).** The population is small, the argument for (b) is thin against a record that
+explicitly asserts no employment, and a billing line nobody can explain is worth more in dispute cost
+than it collects.
+
+**`OQ-079` — Site access control over subcontracted crews.**
+`OQ-037` scoped the subcontracted **workforce** out: they are another *patrón*'s compliance
+obligation. A client may still want to run *reloj checador* over them for site access.
+(a) Support it as a distinct, clearly non-compliance record class that never enters an *incidencias*
+report, a *lista de asistencia* or the IMSS exposure surfaces. (b) Do not support it; those people
+are captured on the subcontractor's own tenant or not at all.
+*Trade-off:* (a) risks a client's own workers and a subcontractor's appearing in one capture stream
+and being mistaken for one workforce, which is exactly the attribution error `FR-645` exists to
+prevent elsewhere. (b) means the client meets a real operational need outside NEO.
+**Recommendation: (b) for v1**, revisited only if a first client asks. The presence record of
+`FR-2090` already covers the person who turns up and is not on the books, without creating a second
+class of worker in the evidentiary path.
+
 ---
 
 ## 14. Out of scope
@@ -2795,9 +3223,9 @@ throughout the product, the schema and the code.
 | ***Patrón*** | The employer. In this document, also a party in the threat model (§2.3). |
 | ***Registro patronal*** | An employer registration with the IMSS. One company may hold several; construction typically requires one per *obra*. Determines the *prima de riesgo* and where contributions are reported. |
 | ***Obra*** | A construction site or project. |
-| ***Frente*** | A work front within an *obra* — the specific place a crew is working. |
-| ***Jornada*** | The working day: its start, its end, and its breaks. The thing the law requires be registered electronically. |
-| ***Checada*** | A single clock event — a check-in or check-out. |
+| ***Frente*** · ***Cuadrilla*** | Subdivisions of the workforce **within one *obra*** — the crew a given supervisor runs. They organise supervision, not compliance: an *obra* carries the *registro patronal*, the SIROC folio and the *fecha de inicio físico*, and a *frente* carries none of them (`FR-2340`). |
+| ***Jornada*** | One continuous work period: its start, its end, and its breaks. The thing the law requires be registered electronically. Normally eight hours; twelve on a *12x12*. Composed of *checadas*, never captured directly (§7.4, `FR-2030`–`FR-2035`). |
+| ***Checada*** | A single clock event — a check-in, a check-out, or the start or end of a break. The evidentiary record, and the entity `CHECADA` (§7.4). |
 | ***Reloj checador*** | A time clock. NEO is a *reloj checador digital*. |
 | ***Lista de asistencia*** | The attendance list workers sign. In a dispute, the traditional evidentiary artifact. |
 | ***Expediente*** | The employee file: contracts, identity documents, permits, certifications, IMSS and Infonavit paperwork. |
@@ -2849,6 +3277,9 @@ throughout the product, the schema and the code.
 | ***Séptimo día*** | The statutory paid weekly rest day. |
 | ***Jornada diurna / nocturna / mixta*** | Day, night and mixed shifts, each with a different statutory maximum length. |
 | ***Periodo*** | The pay period. Construction commonly runs weekly. |
+| ***Ciclo de turno*** · ***rol de turnos*** | A work pattern expressed as a cycle — *n* days on, *m* days off — or as a fixed week, held independently of whoever works it and assigned to a crew, a *centro de trabajo* or a person (`FR-2500`). Called a *ciclo* rather than a *patrón* because *patrón* is the employer. |
+| ***12x12*** | Twelve days worked followed by twelve days of rest — a rotation common on remote *obras*, and the case that decided `OQ-039`. |
+| ***Cuadrilla*** | A crew. A subdivision of the workforce within one *obra*, alongside the *frente*. |
 
 ### Evidentiary
 
