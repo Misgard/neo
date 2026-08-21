@@ -23,8 +23,8 @@ docs/
     prd.md             requirements. The source everything derives from
     adr/               architecture decisions, one per decision
     threat-model.md    adversaries, controls and residual risk — living
-    workflows/         process and state machines (pending)
-    screens.md         screen inventory per persona (pending)
+    workflows/         process and state machines, one file per domain
+    screens.md         screen inventory per persona and form factor
     data-model.md      schema design (pending)
     api/               API and sync protocol contracts (pending)
     modules/           one document per subsystem, written as each is built
