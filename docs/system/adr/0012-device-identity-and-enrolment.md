@@ -1,9 +1,9 @@
 # ADR-0012 — Device identity and enrolment
 
 - **Status:** Proposed
-- **Date:** 2026-08-19
+- **Date:** 2026-08-20
 - **Source:** PRD §8.1, §8.5, §8.9, §8.11, §6.14.7; ADR-0004 decisions 7–9
-- **Satisfies:** `FR-1471`–`FR-1487`, `FR-475`–`FR-483`, `FR-404`–`FR-405`, `NFR-1011`
+- **Satisfies:** `FR-1471`–`FR-1487`, `FR-475`–`FR-483`, `FR-404`–`FR-405`, `FR-2470`, `NFR-1011`
 - **Related:** ADR-0002 (records signed at the edge), ADR-0004 (channels, capability floor,
   attestation at sync), ADR-0006 (native container), ADR-0010 (operator capability),
   ADR-0011 (enrolment permission)
@@ -51,9 +51,22 @@ device* signed, and *which person* was operating it, are different claims with d
 modes. A record carries both, or carries the device and an explicit absence of operator.
 
 **5. A device never silently inherits the previous operator's scope** (`FR-1430`, ADR-0010
-decision 9). Changing operator ends the capability, clears the cached roster, templates and secret
-verifiers, and requires the incoming operator to authenticate. A supervisor handing their phone to
-another supervisor is a deliberate act with a visible boundary, not a silent continuation.
+decision 9). Changing operator **ends the outgoing capability and clears the outgoing operator's
+scope**, and requires the incoming operator to authenticate and receive their own capability. A
+supervisor handing their phone to another supervisor is a deliberate act with a visible boundary,
+not a silent continuation.
+
+**The cached roster, templates and secret verifiers are retained across the handover** (`FR-2470`).
+They belong to the device's **company**, not to its operator, they are encrypted under a
+hardware-backed key (`FR-436`), and they are usable only under a valid capability whose scope
+reaches the worker. Ending the capability is what delivers the property this decision is named for:
+the incoming operator cannot capture outside their own scope because their capability bounds it, and
+anything outside it is recorded and flagged rather than permitted (`FR-1425`). Clearing the cache
+as well would add no protection and would cost the whole incoming shift — re-syncing templates
+requires connectivity (`FR-942`), so at a two-shift *obra* with no signal every record after a
+handover would fall to the weakest class with a mandatory *desviación* (`FR-1485`), twice a day, for
+the life of the site. That is the same consideration decision 11 applies to the purge timer, and it
+applies with more force here, because a handover is routine while a thirty-day silence is not.
 
 **6. A kiosk is a device with no operator, and says so** (`FR-1477`, `FR-1478`). Its records name
 the device as the capturing principal and no operator, and the *lista* discloses it. This is
@@ -75,12 +88,12 @@ failure marks every record in the batch and raises a review item. It does not di
 that would destroy the only copy of a legally required event — and it does not prevent the next
 capture, which would make a compromised device a way to stop a worker being recorded.
 
-**9. Attestation does not set a record's class, pending `OQ-048`** (`FR-1481`). §8.5 lists
-"attestation failed" as a cause of `VERIFICADO_DEGRADADO`, but `FR-411` assigns the class from the
-factors collected at capture and `FR-482` attests at sync — after the record is signed and sealed.
-A class that depended on attestation would have to change after sealing, which `INV-012` forbids.
-Until this is settled, attestation contributes a permanent flag and the class stands as captured.
-This is a contradiction in the PRD, not a choice made here, and `OQ-048` records it.
+**9. Attestation contributes a permanent flag and never a record's class** (`FR-1481`, `FR-2091`).
+`FR-411` assigns the class from the factors collected at capture and `FR-482` attests at sync, after
+the record is signed and sealed; a class that depended on attestation would have to change after
+sealing, which `INV-012` forbids. The same reasoning governs every condition that resolves after
+capture — a stale or expired capability, a capture outside cached scope, an unattested browser
+context — each of which flags the record and leaves its class as captured.
 
 **10. Revocation is time-split, and the split is the point** (`FR-1482`, `FR-1483`). Revocation
 invalidates the device key for records captured **after** the revocation instant and invalidates
@@ -188,7 +201,7 @@ takes the half of this that is safe: expire the personal data, never the evidenc
 ## Revisit triggers
 
 - Play Integrity or App Attest changing in a way that makes attestation available at capture rather
-  than only at sync, which would reopen `OQ-048` and simplify decision 9.
+  than only at sync, which would let attestation contribute to the class and simplify decision 9.
 - A client segment where devices are genuinely shared among several operators through a shift, which
   would make decision 5's explicit handover the common path and deserving of a faster flow.
 - A terminal vendor offering attestation, which would move third-party terminals out of decision 7's
