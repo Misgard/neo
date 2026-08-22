@@ -63,8 +63,13 @@ directory appears when it has content.
 1. **A requirement lives in exactly one place: the PRD.** Design documents and module docs
    reference `FR-###`; they never restate a requirement in their own words, because a restatement
    is a second source of truth that will drift.
-2. **An ADR is never edited to change its decision.** Correct a typo, yes. Change what was decided
-   — write a new ADR that supersedes it and say so in both.
+2. **An `Accepted` ADR is never edited to change its decision.** Correct a typo, yes. Change what
+   was decided — write a new ADR that supersedes it and say so in both.
+
+   **A `Proposed` ADR is a draft and is edited in place.** It has not been signed off, so there is
+   no decision to overturn and nothing downstream relies on it. Bump its date so the amendment is
+   visible. The distinction is the point of the status field: `Proposed` invites correction,
+   `Accepted` demands a successor.
 3. **Assessments are never edited after publication.** See `assessments/README.md`.
 4. **Anything unresolved is an `OQ-###` in PRD §13** with options and a recommendation. Not a
    `TODO`, not a comment, not a note in a design doc.
